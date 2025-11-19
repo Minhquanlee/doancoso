@@ -723,7 +723,9 @@ app.get('/checkout', (req,res)=>{
     total += p.price * q;
   }
   if (items.length === 0) return res.redirect('/cart');
-  res.render('shop/checkout',{ items, total });
+  // try to fetch user's default address (if any) to prefill/skip form
+  const defaultAddress = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
+  res.render('shop/checkout',{ items, total, defaultAddress, stripePublishable: process.env.STRIPE_PUBLISHABLE || null });
 });
 
 app.get('/orders', (req,res)=>{
