@@ -1,0 +1,15 @@
+<h2>Chat với <%= user.name %> — <%= user.email %></h2>
+<div class="chat-box admin">
+  <div class="messages">
+    <% messages.forEach(m=>{ %>
+      <div class="msg <%= m.sender === 'admin' ? 'from-admin' : 'from-user' %>">
+        <div class="meta"><strong><%= m.sender %></strong> — <small><%= m.created_at %></small></div>
+        <div class="content"><%= m.content %></div>
+      </div>
+    <% }) %>
+  </div>
+  <form method="post" action="/admin/chat/<%= user.id %>">
+    <textarea name="message" rows="3" style="width:100%;padding:8px"></textarea>
+    <div style="margin-top:8px"><button class="btn" type="submit">Gửi trả lời</button></div>
+  </form>
+</div>

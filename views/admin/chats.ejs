@@ -1,0 +1,13 @@
+<h2>Hộp thư chat</h2>
+<table>
+  <thead><tr><th>User</th><th>Last message</th><th>Action</th></tr></thead>
+  <tbody>
+    <% chats.forEach(c=>{ %>
+      <tr>
+        <td><%= c.user.name %> (<%= c.user.email %>)</td>
+        <td><%= c.last.content %> — <small><%= c.last.created_at %></small></td>
+        <td><a href="/admin/chat/<%= c.user.id %>" class="link-btn">Open</a></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

@@ -1,0 +1,93 @@
+<h2 style="text-align:center; margin-bottom:16px;">💬 Chat với Admin</h2>
+
+<div class="chat-container">
+  <div class="chat-box">
+    <% if (messages.length === 0) { %>
+      <p class="no-messages">Chưa có tin nhắn. Gửi tin nhắn để bắt đầu.</p>
+    <% } else { %>
+      <div class="messages">
+        <% messages.forEach(m => { %>
+          <div class="msg <%= m.sender === 'admin' ? 'from-admin' : 'from-user' %>">
+            <div class="meta">
+              <strong><%= m.sender %></strong>
+              <small style="opacity:0.7;"> — <%= m.created_at %></small>
+            </div>
+            <div class="content"><%= m.content %></div>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <form method="post" action="/chat" class="chat-form">
+      <textarea name="message" rows="3" placeholder="Nhập tin nhắn..." required></textarea>
+      <button type="submit">Gửi</button>
+    </form>
+  </div>
+</div>
+
+<style>
+  .chat-container {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .chat-box {
+    width: 100%;
+    max-width: 600px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 16px;
+  }
+
+  .messages {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+  }
+
+  .msg {
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    line-height: 1.4;
+  }
+
+  .msg.from-admin {
+    background: #eaf2ff;
+    border-left: 4px solid #007bff;
+  }
+
+  .msg.from-user {
+    background: #f8f9fa;
+    border-left: 4px solid #28a745;
+  }
+
+  .chat-form textarea {
+    width: 100%;
+    resize: none;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+
+  .chat-form button {
+    margin-top: 8px;
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .chat-form button:hover {
+    background: #0056b3;
+  }
+
+  .no-messages {
+    text-align: center;
+    color: #666;
+  }
+</style>

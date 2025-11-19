@@ -1,0 +1,234 @@
+<%
+  // 🖼️ Thêm đúng 5 ảnh — bạn chỉ cần thay link
+  const heroImages = [
+    "https://bizweb.dktcdn.net/thumb/grande/100/489/196/themes/912466/assets/slider_1.jpg?1750404422045",
+    "https://intphcm.com/data/upload/banner-thoi-trang-nam.jpg",
+    "https://insieutoc.vn/wp-content/uploads/2021/02/mau-banner-quang-cao-khuyen-mai.jpg",
+    "https://intphcm.com/data/upload/banner-thoi-trang-tuoi.jpg",
+    "https://intphcm.com/data/upload/banner-thoi-trang-con-nit.jpg"
+  ];
+%>
+
+<div class="hero-slider">
+  <div class="hero-overlay" aria-hidden="true"></div>
+  <button class="hero-nav prev">&#10094;</button>
+  <div class="hero-track">
+
+    <!-- 🚀 Render 5 ảnh vào slider -->
+    <% heroImages.forEach(function(img, i){ %>
+      <div class="hero-slide">
+        <img loading="lazy" 
+             src="<%= img.startsWith('./') ? img.replace('./', '/') : img %>" 
+             alt="banner-<%= i+1 %>"
+             onerror="this.onerror=null;this.src='/images/1760787294482-quan1.jpg'">
+      </div>
+    <% }); %>
+
+  </div>
+  <button class="hero-nav next">&#10095;</button>
+
+  <div class="hero-dots"></div>
+  <!-- captions removed per request -->
+</div>
+
+<style>
+  .hero-slider {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: 20px auto;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+
+  .hero-track {
+    display: flex;
+    transition: transform 0.7s cubic-bezier(.22,.9,.33,1);
+    will-change: transform;
+  }
+
+  .hero-slide {
+    min-width: 100%;
+    height: 420px;
+    flex-shrink: 0;
+  }
+
+  .hero-slide {
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #0000;
+}
+
+.hero-slide img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  display: block;
+}
+
+  .hero-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.4);
+    color: #ece6e6;
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    transition: background 0.24s ease, transform 0.18s ease, color 0.18s ease;
+    z-index: 10;
+  }
+
+  /* arrow hover: brand color, white icon, slight scale */
+  .hero-nav:hover, .hero-nav:focus {
+    background: var(--accent);
+    color: #fff;
+    transform: translateY(-50%) scale(1.08);
+    box-shadow:0 8px 24px rgba(108,92,231,0.16);
+    outline: none;
+  }
+
+  .hero-nav.prev { left: 16px; }
+  .hero-nav.next { right: 16px; }
+
+  .hero-dots {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 11;
+  }
+
+  .hero-dots button {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(235,235,241,0.6);
+    cursor: pointer;
+    transition: background 0.18s ease, transform 0.18s ease, width 0.18s ease;
+  }
+
+  /* normal dot hover: subtle grow and tint */
+  .hero-dots button:hover { transform: scale(1.12); background: rgba(108,92,231,0.12); }
+
+  /* active dot: pill-shaped and highlighted */
+  .hero-dots button.active { background: var(--accent); width: 28px; height:10px; border-radius:999px; transform: scale(1.03); box-shadow:0 8px 20px rgba(108,92,231,0.12); }
+
+  /* caption removed */
+</style>
+
+<script>
+(function(){
+  const root = document.querySelector('.hero-slider');
+  if (!root) return;
+
+  const track = root.querySelector('.hero-track');
+  let slides = Array.from(root.querySelectorAll('.hero-slide'));
+  const prevBtn = root.querySelector('.hero-nav.prev');
+  const nextBtn = root.querySelector('.hero-nav.next');
+  const dotsContainer = root.querySelector('.hero-dots');
+
+  if (!slides.length) {
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
+    if (dotsContainer) dotsContainer.style.display = 'none';
+    return;
+  }
+
+  // Clone
+  const first = slides[0];
+  const last = slides[slides.length - 1];
+  const firstClone = first.cloneNode(true);
+  const lastClone = last.cloneNode(true);
+  firstClone.classList.add('clone');
+  lastClone.classList.add('clone');
+  track.appendChild(firstClone);
+  track.insertBefore(lastClone, track.firstChild);
+
+  slides = Array.from(root.querySelectorAll('.hero-slide'));
+  const realCount = slides.length - 2;
+  let index = 1;
+
+  dotsContainer.innerHTML = '';
+  for (let i = 0; i < realCount; i++) {
+    const dot = document.createElement('button');
+    dot.setAttribute('aria-label', 'Đi đến slide ' + (i + 1));
+    dot.addEventListener('click', () => goTo(i + 1));
+    dotsContainer.appendChild(dot);
+  }
+  const dots = Array.from(dotsContainer.children);
+
+  let slideWidth = 0;
+  function recalc() {
+    slideWidth = root.getBoundingClientRect().width;
+    moveToIndex(index, false);
+  }
+
+  function moveToIndex(i, withTransition = true) {
+    track.style.transition = withTransition ? 'transform 0.7s cubic-bezier(.22,.9,.33,1)' : 'none';
+    track.style.transform = `translateX(${-(i * slideWidth)}px)`;
+    updateDots(i);
+    // no caption animation (captions removed)
+  }
+
+  function updateDots(i) {
+    let realIndex = i - 1;
+    if (realIndex < 0) realIndex = realCount - 1;
+    if (realIndex >= realCount) realIndex = 0;
+
+    dots.forEach(d => d.classList.remove('active'));
+    dots[realIndex].classList.add('active');
+  }
+
+  function prev(){ index--; moveToIndex(index, true); }
+  function next(){ index++; moveToIndex(index, true); }
+  function goTo(i){ index = i; moveToIndex(index, true); }
+
+  track.addEventListener('transitionend', () => {
+    if (index === 0) {
+      index = realCount;
+      moveToIndex(index, false);
+    } else if (index === realCount + 1) {
+      index = 1;
+      moveToIndex(index, false);
+    }
+  });
+
+  let timer = null;
+  function startAuto(){ stopAuto(); timer = setInterval(() => next(), 4500); }
+  function stopAuto(){ if (timer) clearInterval(timer); }
+
+  root.addEventListener('mouseenter', stopAuto);
+  root.addEventListener('mouseleave', startAuto);
+
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowLeft') prev();
+    if (e.key === 'ArrowRight') next();
+  });
+
+  window.addEventListener('resize', () => {
+    clearTimeout(window._heroResize);
+    window._heroResize = setTimeout(recalc, 120);
+  });
+
+  requestAnimationFrame(() => {
+    recalc();
+    moveToIndex(index, false);
+    startAuto();
+  });
+
+})();
+</script>

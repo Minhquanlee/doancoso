@@ -1,0 +1,16 @@
+<h2>Đơn hàng của bạn</h2>
+<% if (orders.length === 0) { %>
+  <p>Bạn chưa có đơn hàng nào.</p>
+<% } else { %>
+  <% orders.forEach(o=>{ %>
+    <section class="order">
+      <h3>Đơn #<%= o.order.id %> — <%= o.order.status %> — <%= o.order.created_at %></h3>
+      <ul>
+      <% o.items.forEach(i=>{ %>
+        <li><%= i.title %> x <%= i.quantity %> — <%= (i.price * i.quantity).toLocaleString() %> VND</li>
+      <% }) %>
+      </ul>
+      <p>Tổng: <strong><%= o.order.total.toLocaleString() %> VND</strong></p>
+    </section>
+  <% }) %>
+<% } %>

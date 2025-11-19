@@ -1,0 +1,32 @@
+<h2>Trạng thái đơn hàng</h2>
+<% if (orders.length === 0) { %>
+  <p>Bạn chưa có đơn hàng nào.</p>
+<% } else { %>
+  <% orders.forEach(o=>{ %>
+    <section class="order" style="border:1px solid #eee;padding:12px;margin-bottom:12px">
+      <h3>Đơn #<%= o.order.id %> — <%= o.order.created_at %></h3>
+      <p>Trạng thái: <strong><%= o.order.status %></strong></p>
+      <ul>
+      <% o.items.forEach(i=>{ %>
+        <li>
+          <%= i.title %>
+          <% if (i.option) { %>
+            <small style="color:var(--muted)"> — Size: <%= i.option %></small>
+          <% } %>
+          x <%= i.quantity %> — <%= (i.price * i.quantity).toLocaleString() %> VND
+        </li>
+      <% }) %>
+      </ul>
+      <p>Tổng: <strong><%= o.order.total.toLocaleString() %> VND</strong></p>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <a href="/order/<%= o.order.id %>" class="btn-ghost">Xem</a>
+        <% if (o.order.status !== 'shipped' && o.order.status !== 'cancelled') { %>
+          <a href="/order/<%= o.order.id %>/edit" class="btn-ghost">Sửa đơn</a>
+          <form method="post" action="/order/<%= o.order.id %>/cancel" onsubmit="return confirm('Bạn có chắc muốn hủy đơn #<%= o.order.id %>?')" style="display:inline">
+            <button type="submit" class="btn-detail">Hủy đơn</button>
+          </form>
+        <% } %>
+      </div>
+    </section>
+  <% }) %>
+<% } %>

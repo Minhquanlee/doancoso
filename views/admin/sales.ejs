@@ -1,0 +1,37 @@
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <a href="/admin">Sản phẩm</a>
+    <a href="/admin/new">Tạo sản phẩm mới</a>
+    <a href="/admin/orders">Đơn hàng</a>
+    <a href="/admin/sales" class="active">Doanh thu</a>
+  </aside>
+  <div class="admin-main">
+    <style>
+      .active-period { font-weight:700; }
+    </style>
+    <h2>Báo cáo doanh thu & bán chạy</h2>
+    <p>Danh sách sản phẩm được mua nhiều nhất (loại trừ các đơn hàng đã bị huỷ)</p>
+    <div style="margin-top:8px;margin-bottom:12px;display:flex;gap:8px;align-items:center">
+  <a href="/admin/sales?period=day" class="link-btn <%= period==='day' ? 'active-period' : '' %>">Theo ngày</a>
+  <a href="/admin/sales?period=week" class="link-btn <%= period==='week' ? 'active-period' : '' %>">Theo tuần</a>
+  <a href="/admin/sales?period=month" class="link-btn <%= (typeof period==='undefined' || period==='month') ? 'active-period' : '' %>">Theo tháng</a>
+      <div style="margin-left:16px;color:var(--muted)">Tổng doanh thu: <strong style="color:var(--accent)"><%= (totalRevenue||0).toLocaleString() %> VND</strong></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px">
+      <% if (!rows || rows.length === 0) { %>
+        <div class="card" style="padding:18px">Chưa có dữ liệu bán hàng.</div>
+      <% } else { %>
+        <% rows.forEach(r=>{ %>
+          <div class="card" style="width:260px">
+            <div class="image-wrap" style="height:150px"><img loading="lazy" src="<%= r.safeImage %>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:6px"/></div>
+            <div style="padding:10px">
+              <strong style="display:block;margin-bottom:6px"><%= r.title %></strong>
+              <div class="text-muted" style="margin-bottom:6px"><%= r.total_qty %> lượt mua</div>
+              <div style="font-weight:600;color:var(--accent);">Doanh thu: <%= (r.revenue || 0).toLocaleString() %> VND</div>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+  </div>
+</div>

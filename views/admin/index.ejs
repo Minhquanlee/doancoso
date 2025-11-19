@@ -1,0 +1,42 @@
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <a href="/admin" class="nav-item <%= (typeof activeAdmin==='undefined' || activeAdmin==='products') ? 'active' : '' %>">
+      <span class="icon">📦</span>
+      <span class="label">Sản phẩm</span>
+    </a>
+    <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>">
+      <span class="icon">✨</span>
+      <span class="label">Tạo sản phẩm mới</span>
+    </a>
+    <a href="/admin/orders" class="nav-item <%= (activeAdmin==='orders') ? 'active' : '' %>">
+      <span class="icon">🛒</span>
+      <span class="label">Đơn hàng</span>
+    </a>
+    <a href="/admin/sales" class="nav-item <%= (activeAdmin==='sales') ? 'active' : '' %>">
+      <span class="icon">📈</span>
+      <span class="label">Doanh thu</span>
+    </a>
+  </aside>
+  <div class="admin-main">
+    <h2 class="admin-title">Quản lý sản phẩm</h2>
+    <div class="product-grid">
+    <% products.forEach(p=>{ 
+        const stockClass = (p.stock>20) ? 'stock-high' : (p.stock>5 ? 'stock-medium' : 'stock-low');
+    %>
+      <div class="product-card">
+        <div class="image-wrap card-image"><img loading="lazy" src="<%= p.safeImage || p.image || '/images/default.svg' %>" alt=""/></div>
+        <div class="card-body">
+          <div class="card-title"><span class="prod-name"><%= p.title %></span></div>
+          <div class="text-muted meta"><span class="cat"><%= p.category %></span> • <span class="stock <%= stockClass %>"><%= p.stock %> in stock</span></div>
+          <div class="card-actions">
+            <a href="/admin/edit/<%= p.id %>" class="btn-edit">Sửa</a>
+            <form method="post" action="/admin/delete/<%= p.id %>" style="display:inline">
+              <button type="submit" class="btn-delete">Xoá</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    <% }) %>
+    </div>
+  </div>
+</div>

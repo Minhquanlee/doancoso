@@ -1,0 +1,16 @@
+<div class="admin-form-card">
+  <div class="form-header">
+    <h2>Thêm sản phẩm mới</h2>
+    <a href="/admin/sales" class="report-link">Báo cáo doanh thu</a>
+  </div>
+  <form method="post" action="/admin/new" enctype="multipart/form-data" class="admin-form">
+    <div class="row"><label>Tiêu đề: <input name="title" required/></label>
+    <label>Giá (VND): <input name="price" type="number" required/></label></div>
+    <label class="full">Mô tả: <textarea name="description" rows="6"></textarea></label>
+    <div class="row"><label>Danh mục: <input name="category" placeholder="Áo, Quần, Mũ..."/></label>
+    <label>Stock: <input name="stock" type="number" value="10"/></label></div>
+  <label class="file-label">Ảnh sản phẩm : <input id="images-input" name="images" type="file" accept="image/*" multiple/></label>
+  <div id="preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+    <div class="form-actions" style="margin-top:10px"><button type="submit" class="btn btn-primary">Thêm</button> <a href="/admin" class="btn-ghost">Huỷ</a></div>
+  </form>
+</div>

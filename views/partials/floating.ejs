@@ -1,0 +1,150 @@
+<!-- Floating Buttons -->
+<div class="floating-buttons">
+  <!-- Nút điện thoại -->
+  <button id="contact-btn" class="float-btn phone">
+    <i class="fas fa-phone"></i>
+  </button>
+
+  <!-- Nút giỏ hàng -->
+  <a href="/cart" class="float-btn cart">
+    <i class="fas fa-shopping-cart"></i>
+  </a>
+</div>
+
+<!-- Popup -->
+<div id="contact-popup" class="popup-overlay">
+  <div class="popup-content">
+    <button id="close-popup" class="close-btn">&times;</button>
+    <h2>Thông tin liên hệ</h2>
+    <p><strong>Điện thoại:</strong> 1900 1508</p>
+    <p><strong>Email:</strong> qnshop@gmail.com</p>
+    <p><strong>Địa chỉ:</strong> 123 Nguyễn Trãi, Hà Nội</p>
+    <p><strong>Giờ làm việc:</strong> 8:00 – 21:00</p>
+  </div>
+</div>
+
+<!-- Font Awesome -->
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+/>
+
+<!-- CSS -->
+<style>
+  /* Floating buttons container */
+  .floating-buttons {
+    position: fixed;
+    bottom: 60px;
+    right: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 1000;
+  }
+
+  /* Button style */
+  .float-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: #ff5c5c;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .float-btn:hover {
+    background-color: #007bff;
+    transform: scale(1.1);
+  }
+
+  /* Popup overlay */
+  .popup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+  }
+
+  /* Popup content */
+  .popup-content {
+    position: relative;
+    background: #fff;
+    padding: 35px 45px;
+    border-radius: 16px;
+    width: 420px;
+    max-width: 90%;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+    text-align: left;
+    animation: popupFadeIn 0.3s ease;
+  }
+
+  .popup-content h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #007bff;
+    text-align: center;
+  }
+
+  .popup-content p {
+    margin: 10px 0;
+    font-size: 15px;
+  }
+
+  /* Close button */
+  .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 24px;
+    background: transparent;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .close-btn:hover {
+    color: #007bff;
+  }
+
+  @keyframes popupFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+<!-- JS -->
+<script>
+  const contactBtn = document.getElementById("contact-btn");
+  const popup = document.getElementById("contact-popup");
+  const closePopup = document.getElementById("close-popup");
+
+  contactBtn.addEventListener("click", () => {
+    popup.style.display = "flex";
+  });
+
+  closePopup.addEventListener("click", () => {
+    popup.style.display = "none";
+  });
+
+  popup.addEventListener("click", (e) => {
+    if (e.target === popup) popup.style.display = "none";
+  });
+</script>

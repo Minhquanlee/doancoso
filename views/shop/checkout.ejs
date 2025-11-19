@@ -1,0 +1,53 @@
+<h2>Thanh toán</h2>
+<% if (items.length === 0) { %>
+  <p>Giỏ hàng trống</p>
+<% } else { %>
+  <ul>
+  <% items.forEach(it=>{ %>
+    <li><%= it.product.title %> x <%= it.quantity %> — <%= (it.product.price * it.quantity).toLocaleString() %> VND</li>
+  <% }) %>
+  </ul>
+  <p>Tổng: <strong><%= total.toLocaleString() %> VND</strong></p>
+  <div style="display:flex;gap:12px;align-items:center">
+    <form method="post" action="/checkout">
+      <button id="mock-pay" type="submit">Thanh toán (mô phỏng)</button>
+    </form>
+    <button id="qr-pay" type="button" class="btn">Hiển thị mã QR</button>
+  </div>
+
+  <div id="qr-modal" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+    <div style="background:#fff;padding:16px;border-radius:8px;max-width:320px;text-align:center">
+      <h3>Quét QR để thanh toán</h3>
+      <div id="qr-target"></div>
+      <p id="qr-amount" style="margin-top:8px;font-weight:700"></p>
+      <div style="margin-top:8px"><button id="qr-close" class="link-btn">Đóng</button></div>
+    </div>
+  </div>
+  <script src="/js/qrcode.min.js"></script>
+  <script>
+    document.getElementById('qr-pay').addEventListener('click', ()=>{
+      const modal = document.getElementById('qr-modal');
+      const amount = '<%= total %>';
+      document.getElementById('qr-amount').textContent = (parseInt(amount)||0).toLocaleString() + ' VND';
+      renderQRCode(document.getElementById('qr-target'), 'PAY:'+amount);
+      modal.style.display = 'flex';
+    });
+    document.getElementById('qr-close').addEventListener('click', ()=>{ document.getElementById('qr-modal').style.display='none' });
+  </script>
+  <% if (stripePublishable) { %>
+    <button id="stripe-pay" type="button">Thanh toán bằng thẻ (Stripe)</button>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+      const stripe = Stripe('<%= stripePublishable %>');
+      document.getElementById('stripe-pay').addEventListener('click', async ()=>{
+        const r = await fetch('/create-stripe-session', { method: 'POST', credentials: 'same-origin' });
+        const j = await r.json();
+        if (j.id) {
+          stripe.redirectToCheckout({ sessionId: j.id });
+        } else {
+          alert('Stripe session error: ' + (j.error || 'unknown'));
+        }
+      });
+    </script>
+  <% } %>
+<% } %>

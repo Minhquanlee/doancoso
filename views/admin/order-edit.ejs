@@ -1,0 +1,42 @@
+<h2>Sửa đơn hàng #<%= order.id %></h2>
+<form method="post" action="/admin/orders/<%= order.id %>/update">
+  <div style="display:flex;gap:24px;align-items:flex-start">
+    <div style="flex:1">
+      <label>Trạng thái
+        <select name="status">
+          <option value="pending" <%= order.status==='pending'?'selected':'' %>>pending</option>
+          <option value="paid" <%= order.status==='paid'?'selected':'' %>>paid</option>
+          <option value="shipped" <%= order.status==='shipped'?'selected':'' %>>shipped</option>
+          <option value="cancelled" <%= order.status==='cancelled'?'selected':'' %>>cancelled</option>
+        </select>
+      </label>
+
+      <h4 style="margin-top:12px">Gán địa chỉ giao hàng</h4>
+      <% if (addresses && addresses.length) { %>
+        <select name="address_id">
+          <option value="">-- Chọn địa chỉ (mặc định hiện tại sẽ được dùng) --</option>
+          <% addresses.forEach(function(a){ %>
+            <option value="<%= a.id %>" <%= (order.address_id && order.address_id==a.id)?'selected':'' %>><%= a.recipient %> — <%= a.street %>, <%= a.city %></option>
+          <% }) %>
+        </select>
+      <% } else { %>
+        <div class="text-muted">Người dùng chưa có địa chỉ nào.</div>
+      <% } %>
+    </div>
+
+    <div style="flex:1">
+      <h4>Thông tin đơn</h4>
+      <p><strong>Tổng:</strong> <%= order.total.toLocaleString() %> VND</p>
+      <h4>Sản phẩm</h4>
+      <ul>
+        <% items.forEach(function(i){ %>
+          <li><%= i.title %> <% if(i.option){ %> — Size: <%= i.option %> <% } %> x <%= i.quantity %></li>
+        <% }) %>
+      </ul>
+    </div>
+  </div>
+  <div style="margin-top:12px">
+    <button class="btn" type="submit">Lưu thay đổi</button>
+    <a href="/admin/orders" class="btn-ghost" style="margin-left:8px">Hủy</a>
+  </div>
+</form>

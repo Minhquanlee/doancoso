@@ -1,0 +1,52 @@
+<% var categoriesSafe = (typeof categories !== 'undefined' && categories) ? categories : []; var activeSafe = (typeof activeCategory !== 'undefined') ? activeCategory : null; %>
+<h2>Sản phẩm</h2>
+<% if (!hideHero) { %>
+  <%- include('../partials/hero') %>
+<% } %>
+<nav class="categories">
+  <a href="/" class="cat <%= !activeSafe ? 'active' : '' %>">Tất cả</a>
+  <% categoriesSafe.forEach(function(c){ %>
+    <a href="/?category=<%= encodeURIComponent(c) %>" class="cat <%= activeSafe===c ? 'active' : '' %>"><%= c %></a>
+  <% }) %>
+</nav>
+<div class="products">
+  <% products.forEach(p=>{ %>
+    <div class="product card" data-id="<%= p.id %>">
+  <div class="image-wrap">
+    <img loading="lazy" src="<%= p.safeImage || p.image %>" alt="<%= p.title %>" />
+  </div>
+      <div class="info">
+        <h3><a href="/product/<%= p.id %>" class="product-link" data-id="<%= p.id %>"><%= p.title %></a></h3>
+        <p class="desc"><%= p.description %></p>
+        <div class="meta">
+          <span class="price"><%= (p.price).toLocaleString() %> VND</span>
+          <span class="badge"><%= p.category %></span>
+        </div>
+        <form method="post" action="/cart/add" class="add-form">
+          <input type="hidden" name="productId" value="<%= p.id %>" />
+          <input type="number" name="qty" value="1" min="1" />
+          <button type="submit" class="btn">Thêm vào giỏ</button>
+        </form>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Clicking a product opens the product page directly -->
+<style>
+  .product.card { cursor: pointer; }
+  .image-wrap { position: relative; }
+</style>
+<script>
+  // Navigate to product page when clicking a product card (but not when clicking controls)
+  document.addEventListener('click', function(e){
+    if (e.target.closest && e.target.closest('a, button, input, textarea, select, form')) return;
+    const card = e.target.closest && e.target.closest('.product[data-id]');
+    if (!card) return;
+    const id = card.dataset.id;
+    if (!id) return;
+    window.location.href = '/product/' + id;
+  });
+
+  // Quick-view removed: clicking a product navigates to its page; controls (buttons/links) still work
+</script>

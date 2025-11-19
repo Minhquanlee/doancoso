@@ -1,0 +1,218 @@
+<div class="product-detail">
+  <div class="product-gallery">
+    <div class="gallery">
+      <div class="carousel">
+        <button class="carousel-nav prev" aria-label="Previous">◀</button>
+        <div class="carousel-track" id="carousel-track">
+          <% const images = product.images && product.images.length ? product.images : [product.safeImage || product.image]; %>
+          <% images.forEach(function(img, idx){ %>
+            <div class="slide" data-index="<%= idx %>"><img class="main-slide" src="<%= img %>" alt="<%= product.title %> - <%= idx+1 %>" loading="lazy" /></div>
+          <% }) %>
+        </div>
+        <button class="carousel-nav next" aria-label="Next">▶</button>
+      </div>
+      <div class="thumbs" id="thumbs">
+        <% images.forEach(function(img, idx){ %>
+          <img class="thumb" src="<%= img %>" data-src="<%= img %>" data-index="<%= idx %>" alt="thumb" />
+        <% }) %>
+      </div>
+    </div>
+    <div class="details">
+      <h2><%= product.title %></h2>
+      <p><%= product.description %></p>
+      <p>Giá: <strong><%= product.price.toLocaleString() %> VND</strong></p>
+      <form method="post" action="/cart/add" class="buy-form">
+        <input type="hidden" name="productId" value="<%= product.id %>" />
+        <div class="field-row">
+          <label>Size:
+            <select name="option">
+              <option value="">Chọn size</option>
+              <option value="S">S</option>
+              <option value="M">M</option>
+              <option value="L">L</option>
+              <option value="XL">XL</option>
+            </select>
+          </label>
+          <label>SL:
+            <input type="number" name="qty" value="1" min="1" />
+          </label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn secondary">Thêm vào giỏ</button>
+          <button type="submit" formaction="/buy-now" formmethod="post" class="btn primary-buy">Mua ngay</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="img-modal" class="img-modal">
+  <button class="close-btn" aria-label="Đóng">✕</button>
+  <img id="modal-img" src="" />
+</div>
+<script>
+  (function(){
+    // relatedProducts is provided by server as array of product ids (first element is current product id)
+    const relatedProducts = <%- JSON.stringify(typeof relatedProducts !== 'undefined' ? relatedProducts : []) %> || [];
+    const currentProductId = <%= product.id %>;
+    // simple cache for prefetched product-json responses
+    const relatedCache = Object.create(null);
+    function prefetchProduct(id){
+      if (!id || relatedCache[id]) return Promise.resolve(relatedCache[id]);
+      return fetch('/product-json/' + id).then(r=>{ if (!r.ok) throw new Error('prefetch failed'); return r.json(); }).then(data=>{ relatedCache[id]=data; return data; }).catch(e=>{ relatedCache[id]=null; return null; });
+    }
+    // tooltip element for hover preview
+    let previewEl = null;
+    function ensurePreview(){
+      if (previewEl) return previewEl;
+      previewEl = document.createElement('div');
+      previewEl.className = 'arrow-preview';
+      previewEl.style.position = 'fixed';
+      previewEl.style.zIndex = 9999;
+      previewEl.style.display = 'none';
+      previewEl.style.padding = '8px';
+      previewEl.style.background = 'rgba(255,255,255,0.98)';
+      previewEl.style.border = '1px solid rgba(16,24,40,0.06)';
+      previewEl.style.borderRadius = '8px';
+      previewEl.style.boxShadow = '0 10px 30px rgba(2,6,23,0.08)';
+      previewEl.innerHTML = '<img style="width:64px;height:64px;object-fit:cover;border-radius:6px;margin-right:8px;float:left" src="" /><div style="min-width:160px"><div class="title" style="font-weight:600;margin-bottom:4px"></div><div class="muted" style="color:var(--muted);font-size:13px"></div></div>';
+      document.body.appendChild(previewEl);
+      return previewEl;
+    }
+    // find index of current product in relatedProducts (usually 0)
+    let relIndex = relatedProducts.indexOf(currentProductId);
+    if (relIndex === -1) relIndex = 0;
+    const track = document.getElementById('carousel-track');
+    const thumbs = Array.from(document.querySelectorAll('.thumb'));
+    const slides = Array.from(track ? track.querySelectorAll('.slide') : []);
+    let current = 0;
+    function showSlide(i){
+      if (!track) return;
+      current = (i + slides.length) % slides.length;
+      const w = slides[0].getBoundingClientRect().width;
+      track.style.transform = `translateX(${-current * w}px)`;
+      thumbs.forEach(t=>t.classList.remove('active'));
+      const activeThumb = thumbs.find(t=>t.dataset.index == current);
+      if (activeThumb) activeThumb.classList.add('active');
+    }
+    const modal = document.getElementById('img-modal');
+    const modalImg = document.getElementById('modal-img');
+    const closeBtn = modal.querySelector('.close-btn');
+
+  function openModal(src){ modalImg.src = src; modal.classList.add('show'); }
+    function closeModal(){ modal.classList.remove('show'); modalImg.src = ''; }
+
+  if (slides.length) slides.forEach(s=> s.addEventListener('click', ()=> openModal(s.querySelector('img').src)));
+  // initial layout
+  if (slides.length) showSlide(0);
+  // handle prev/next
+  const prev = document.querySelector('.carousel-nav.prev');
+  const next = document.querySelector('.carousel-nav.next');
+  function ajaxLoadProduct(id){
+    if (!id) return Promise.reject(new Error('no id'));
+    if (relatedCache[id]) return Promise.resolve(relatedCache[id]);
+    return fetch('/product-json/' + id).then(r=>{ if (!r.ok) throw new Error('fetch failed'); return r.json(); }).then(data=>{ relatedCache[id]=data; return data; });
+  }
+
+  function applyProductData(data, push){
+    try {
+      if (!data) return;
+      // update title, description, price
+      document.querySelector('.details h2').textContent = data.title || '';
+      document.querySelector('.details p').textContent = data.description || '';
+      const priceEl = document.querySelector('.details p strong');
+      if (priceEl) priceEl.textContent = (data.price || 0).toLocaleString() + ' VND';
+      // update hidden productId
+      const hid = document.querySelector('input[name="productId"]'); if (hid) hid.value = data.id;
+      // rebuild carousel slides and thumbs
+      const imgs = (data.images && data.images.length) ? data.images : (data.image ? [data.image] : []);
+      const track = document.getElementById('carousel-track');
+      const thumbsWrap = document.getElementById('thumbs');
+      if (track && thumbsWrap){
+        track.innerHTML = '';
+        thumbsWrap.innerHTML = '';
+        imgs.forEach(function(img, idx){
+          const slide = document.createElement('div'); slide.className='slide'; slide.dataset.index = idx;
+          const im = document.createElement('img'); im.className='main-slide'; im.src = img; im.alt = (data.title||'') + ' - ' + (idx+1); slide.appendChild(im);
+          track.appendChild(slide);
+          const th = document.createElement('img'); th.className='thumb'; th.src = img; th.dataset.index = idx; th.alt='thumb'; thumbsWrap.appendChild(th);
+        });
+        // rebind thumbs click
+        const newThumbs = Array.from(document.querySelectorAll('.thumb'));
+        newThumbs.forEach(function(t){ t.addEventListener('click', function(){ showSlide(parseInt(t.dataset.index||0)); }); });
+        // show first
+        const newSlides = Array.from(track.querySelectorAll('.slide'));
+        if (newSlides.length) showSlide(0);
+      }
+      // update relatedProducts index if present
+      const idx = relatedProducts.findIndex(r=>r && r.id == data.id);
+      if (idx !== -1) relIndex = idx; else {
+        // if not present, insert at position 0
+        relatedProducts.unshift({ id: data.id, title: data.title, image: (data.images && data.images[0]) || data.image }); relIndex = 0;
+      }
+      if (push) history.pushState({id: data.id}, data.title || '', '/product/' + data.id);
+    } catch(e){ console.warn('applyProductData failed', e); }
+  }
+
+  function handleArrowClick(dir){
+    if (!(relatedProducts && relatedProducts.length > 1)) {
+      if (dir === -1) return showSlide(current-1); else return showSlide(current+1);
+    }
+    relIndex = (relIndex + (dir === -1 ? -1 : 1) + relatedProducts.length) % relatedProducts.length;
+    const target = relatedProducts[relIndex] && relatedProducts[relIndex].id;
+    if (!target) return;
+    // try AJAX load, fallback to full navigation
+    ajaxLoadProduct(target).then(data=>{ if (!data) { window.location.href = '/product/' + target; return; } applyProductData(data, true); }).catch(()=>{ window.location.href = '/product/' + target; });
+  }
+
+  if (prev) prev.addEventListener('click', ()=> handleArrowClick(-1));
+  if (next) next.addEventListener('click', ()=> handleArrowClick(1));
+
+  // preview on hover + prefetch
+  function attachPreview(el, direction){
+    if (!el) return;
+    let hoverId = null;
+    el.addEventListener('mouseenter', function(e){
+      const nextIdx = (relIndex + (direction === 'next' ? 1 : -1) + relatedProducts.length) % relatedProducts.length;
+      const info = relatedProducts[nextIdx];
+      if (!info) return;
+      hoverId = info.id;
+      prefetchProduct(hoverId).then(data=>{
+        const preview = ensurePreview();
+        if (!data) { preview.style.display='none'; return; }
+        preview.querySelector('img').src = (data.images && data.images[0]) || data.image || info.image || '';
+        preview.querySelector('.title').textContent = data.title || info.title || '';
+        preview.querySelector('.muted').textContent = (data.price ? (data.price.toLocaleString() + ' VND') : '');
+        // position preview near element
+        const rect = el.getBoundingClientRect();
+        preview.style.left = (rect.left + (direction === 'next' ? rect.width + 8 : -240)) + 'px';
+        preview.style.top = (rect.top + window.scrollY + (rect.height/2) - 36) + 'px';
+        preview.style.display = 'block';
+      });
+    });
+    el.addEventListener('mouseleave', function(){ if (previewEl) previewEl.style.display='none'; });
+  }
+  attachPreview(prev, 'prev'); attachPreview(next, 'next');
+    closeBtn.addEventListener('click', closeModal);
+
+    // don't close when clicking the image itself
+    modalImg.addEventListener('click', function(e){ e.stopPropagation(); });
+    modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
+
+    // ESC to close
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeModal(); });
+
+    thumbs.forEach(function(t){
+      t.addEventListener('click', function(e){
+        const idx = parseInt(t.dataset.index || 0);
+        showSlide(idx);
+      });
+    });
+
+    // keyboard arrows for carousel
+    document.addEventListener('keydown', function(e){ if (e.key === 'ArrowRight') showSlide(current+1); if (e.key === 'ArrowLeft') showSlide(current-1); });
+
+    // mark first thumb active
+    if (thumbs.length) thumbs[0].classList.add('active');
+  })();
+</script>

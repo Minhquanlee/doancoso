@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= (typeof title !== 'undefined' ? title : 'Shop') %></title>
+    <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Google Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+  </head>
+  <body>
+    <header class="header-bar">
+      <div class="container">
+        <div class="top-left">
+          <div class="brand"><a href="/">Q &amp; N SHOP</a></div>
+          <div class="hotline">Liên hệ : <strong>19001508</strong></div>
+        </div>
+        <div class="top-center">
+          <% if (typeof hideHero === 'undefined' || !hideHero) { %>
+            <form action="/search" method="get" class="search-form">
+              <input name="q" placeholder="Tìm kiếm sản phẩm..." value="<%= typeof q !== 'undefined' ? q : '' %>" />
+              <button type="submit" aria-label="Tìm kiếm" class="icon-btn"><i class="fas fa-search"></i></button>
+            </form>
+          <% } %>
+        </div>
+        <div class="top-right">
+          <% if (!(currentUser && currentUser.role === 'admin')) { %>
+            <a href="/cart" class="icon-btn" title="Giỏ hàng">
+              <i class="fas fa-shopping-cart"></i>
+              <span class="icon-badge"><%= cartCount || 0 %></span>
+            </a>
+          <% } %>
+          <!-- compact account / admin controls -->
+          <% if (currentUser) { %>
+            <% if (currentUser.role !== 'admin') { %>
+              <a href="/order-status" class="icon-btn" title="Trạng thái đơn hàng"><i class="fas fa-receipt"></i></a>
+              <div class="account-menu" style="margin-left:8px">
+                <button class="account-toggle avatar-toggle" aria-haspopup="true" aria-expanded="false">
+                  <img src="<%= currentUser.avatar ? currentUser.avatar : '/images/avatar.jpg' %>" alt="avatar" />
+                </button>
+                <div class="account-list">
+                    <a href="/account">Hồ sơ</a>
+                    <a href="/account/password">Đổi mật khẩu</a>
+                    <form method="post" action="/logout" style="margin:0">
+                      <button type="submit" class="link-btn" style="display:block;padding:8px 12px;border:none;background:transparent;text-align:left">Đăng xuất</button>
+                    </form>
+                  </div>
+              </div>
+            <% } else { %>
+              <div class="admin-menu" style="margin-left:8px">
+                <button class="admin-toggle" aria-haspopup="true" aria-expanded="false"><i class="fas fa-user-cog"></i></button>
+                <div class="admin-list">
+                  <a href="/admin">Quản lý sản phẩm</a>
+                  <a href="/admin/new">Thêm sản phẩm</a>
+                  <a href="/admin/orders">Đơn hàng</a>
+                  <a href="/admin/sales">Doanh thu</a>
+                </div>
+              </div>
+              <form method="post" action="/logout" style="display:inline"><button type="submit" class="link-btn">Đăng xuất</button></form>
+            <% } %>
+          <% } else { %>
+            <a href="/login" class="link-btn" title="Đăng nhập">Đăng nhập</a>
+            <a href="/register" class="link-btn" title="Đăng ký" style="margin-left:8px">Đăng ký</a>
+          <% } %>
+        </div>
+      </div>
+      <nav class="category-nav">
+        <div class="container">
+          <a href="/" class="cat">Tất cả</a>
+          <% (categories||[]).forEach(function(c){ %>
+            <a href="/?category=<%= encodeURIComponent(c) %>" class="cat"><%= c %></a>
+          <% }) %>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <%- body %>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="col">
+            <h4>CÔNG TY CỔ PHẦN Q & N SHOP</h4>
+            <p class="muted"><strong>Hotline</strong><br/>18008118</p>
+            <p class="muted"><strong>Shop</strong><br/>Hệ thống các cửa hàng</p>
+          </div>
+          <div class="col">
+            <h4>CHÍNH SÁCH</h4>
+            <ul>
+              <li><a href="#">Chính sách đổi trả, bảo hành</a></li>
+              <li><a href="#">Chính sách bảo mật</a></li>
+              <li><a href="#">Chính sách giao hàng</a></li>
+              <li><a href="#">Khách hàng thân thiết</a></li>
+            </ul>
+          </div>
+          <div class="col">
+            <h4>CHĂM SÓC KHÁCH HÀNG</h4>
+            <ul>
+              <li><a href="#">Tổng đài chăm sóc khách hàng</a></li>
+              <li><a href="#">Hướng dẫn chọn size</a></li>
+            </ul>
+          </div>
+          <div class="col">
+            <h4>TÀI LIỆU - TUYỂN DỤNG</h4>
+            <ul>
+              <li><a href="#">Tuyển dụng</a></li>
+            </ul>
+          </div>
+          <div class="col">
+            <h4>VỀ 5S FASHION</h4>
+            <ul>
+              <li><a href="#">Tin tức</a></li>
+              <li><a href="#">Về chúng tôi</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <div class="left">© <%= new Date().getFullYear() %> Q &amp; N SHOP — Demo trang web, không dùng cho sản xuất.</div>
+          <div class="right social-icons">
+            <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+            <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+          </div>
+        </div>
+      </div>
+    </footer>
+    <% if (!(currentUser && currentUser.role === 'admin')) { %>
+      <%- include('../partials/floating') %>
+      <script src="/js/cart.js"></script>
+    <% } %>
+    <script src="/js/qrcode.min.js"></script>
+    <script>
+      // confirm delete for admin actions
+      document.addEventListener('click', function(e){
+        const el = e.target;
+        if (!el) return;
+        if (el.tagName === 'BUTTON' && el.closest('form') && el.closest('form').getAttribute('action') && el.closest('form').getAttribute('action').indexOf('/admin/delete/') !== -1) {
+          if (!confirm('Bạn có chắc muốn xóa sản phẩm này?')) e.preventDefault();
+        }
+      });
+
+      // file preview helper for admin forms
+      function setupPreview(id){
+        const inp = document.getElementById(id);
+        if (!inp) return;
+        const preview = document.getElementById('preview');
+        inp.addEventListener('change', function(){
+          if (!preview) return;
+          preview.innerHTML = '';
+          Array.from(inp.files || []).forEach(file => {
+            if (!file.type.startsWith('image/')) return;
+            const r = new FileReader();
+            const box = document.createElement('div'); box.style.width='96px'; box.style.height='96px'; box.style.overflow='hidden'; box.style.borderRadius='6px'; box.style.border='1px solid #eee'; box.style.display='inline-block'; box.style.marginRight='8px';
+            const img = document.createElement('img'); img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover';
+            r.onload = function(ev){ img.src = ev.target.result; box.appendChild(img); preview.appendChild(box); };
+            r.readAsDataURL(file);
+          });
+        });
+      }
+      document.addEventListener('DOMContentLoaded', function(){ setupPreview('images-input'); });
+      // account avatar dropdown: toggle on click, close when clicking outside
+      (function(){
+        function closeAllMenus(){
+          document.querySelectorAll('.account-menu.open').forEach(function(m){ m.classList.remove('open'); m.querySelector('.account-toggle') && m.querySelector('.account-toggle').setAttribute('aria-expanded','false'); });
+        }
+        document.addEventListener('click', function(ev){
+          const t = ev.target;
+          // click on account-toggle -> toggle its menu
+          if (t.closest && t.closest('.account-toggle')){
+            const toggle = t.closest('.account-toggle');
+            const menu = toggle.closest('.account-menu');
+            const isOpen = menu.classList.contains('open');
+            closeAllMenus();
+            if (!isOpen){ menu.classList.add('open'); toggle.setAttribute('aria-expanded','true'); }
+            ev.stopPropagation();
+            return;
+          }
+          // click on admin-toggle -> toggle admin menu (click not hover)
+          if (t.closest && t.closest('.admin-toggle')){
+            const toggle = t.closest('.admin-toggle');
+            const menu = toggle.closest('.admin-menu');
+            const isOpen = menu.classList.contains('open');
+            closeAllMenus();
+            if (!isOpen){ menu.classList.add('open'); toggle.setAttribute('aria-expanded','true'); }
+            ev.stopPropagation();
+            return;
+          }
+          // clicks inside an open account-list or admin-list should not close immediately
+            if (t.closest && (t.closest('.account-menu') || t.closest('.admin-menu'))) return;
+            // else clicked outside - close menus
+            closeAllMenus();
+        });
+        // close on escape
+          document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeAllMenus(); });
+      })();
+      // smooth search submit animation: add loading class then submit after short delay
+      document.addEventListener('DOMContentLoaded', function(){
+        try{
+          var searchForm = document.querySelector('.search-form');
+          if (!searchForm) return;
+          searchForm.addEventListener('submit', function(e){
+            // show a quick animation before navigating: add class to body and button
+            var btn = searchForm.querySelector('button[type="submit"]');
+            if (btn) btn.classList.add('loading');
+            document.body.classList.add('searching');
+            // allow animation to play briefly, then submit
+            e.preventDefault();
+            setTimeout(function(){
+              // remove class just in case navigation is blocked; submit the form
+              if (btn) btn.classList.remove('loading');
+              document.body.classList.remove('searching');
+              searchForm.submit();
+            }, 260);
+          }, {passive:false});
+        }catch(err){ console.error('search-anim', err); }
+      });
+    </script>
+  </body>
+</html>
+

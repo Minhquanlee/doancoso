@@ -1,0 +1,45 @@
+<div class="order-edit-card">
+  <header class="order-edit-header">
+    <h2>Sửa đơn hàng #<%= order.id %></h2>
+    <div class="order-status-badge <%= order.status %>">Trạng thái: <strong><%= order.status %></strong></div>
+  </header>
+
+  <form method="post" action="/order/<%= order.id %>/update" class="order-edit-form">
+    <div class="order-edit-left">
+      <label class="form-label">Người nhận
+        <input name="recipient" value="<%= orderAddress ? orderAddress.recipient : '' %>" required />
+      </label>
+      <label class="form-label">Số điện thoại
+        <input name="phone" value="<%= orderAddress ? orderAddress.phone : (user ? user.phone : '') %>" required />
+      </label>
+      <label class="form-label">Địa chỉ (số nhà, đường)
+        <input name="street" value="<%= orderAddress ? orderAddress.street : '' %>" required />
+      </label>
+      <div class="grid-2">
+        <label class="form-label">Tỉnh / Thành phố
+          <input name="city" value="<%= orderAddress ? orderAddress.city : '' %>" required />
+        </label>
+        <label class="form-label">Số điện thoại 2 ( Nếu có )
+          <input name="postcode" value="<%= orderAddress ? orderAddress.postcode : '' %>" />
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Lưu thay đổi</button>
+        <a href="/order-status" class="btn-ghost">Hủy</a>
+      </div>
+    </div>
+
+    <aside class="order-edit-right">
+      <h4>Danh sách sản phẩm</h4>
+      <ul class="order-items-list">
+        <% items.forEach(function(i){ %>
+          <li class="order-item">
+            <div class="item-title"><%= i.title %> <% if(i.option){ %> <small class="muted">— Size: <%= i.option %></small> <% } %></div>
+            <div class="item-qty">x <%= i.quantity %></div>
+          </li>
+        <% }) %>
+      </ul>
+    </aside>
+  </form>
+</div>

@@ -1,0 +1,38 @@
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <a href="/admin">Sản phẩm</a>
+    <a href="/admin/new">Tạo sản phẩm mới</a>
+    <a href="/admin/orders">Đơn hàng</a>
+    <a href="/admin/sales">Doanh thu</a>
+  </aside>
+  <div class="admin-main">
+  <h2>Chỉnh sửa sản phẩm</h2>
+  <div class="admin-form-card">
+  <form method="post" action="/admin/edit/<%= product.id %>" enctype="multipart/form-data" class="admin-form">
+      <label>Tiêu đề: <input name="title" value="<%= product.title %>" required/></label>
+      <label>Mô tả: <textarea name="description"><%= product.description %></textarea></label>
+      <div style="display:flex;gap:10px"><label>Giá: <input name="price" type="number" value="<%= product.price %>" /></label>
+      <label>Stock: <input name="stock" type="number" value="<%= product.stock %>" /></label>
+      <label>Danh mục: <input name="category" value="<%= product.category %>" /></label></div>
+  <label>Ảnh mới (có thể chọn nhiều): <input id="images-input" name="images" type="file" accept="image/*" multiple/></label>
+  <div id="preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+      <% try { var imgs = product.images ? JSON.parse(product.images) : (product.image ? [product.image] : []); } catch(e){ imgs = product.image ? [product.image] : []; } %>
+      <% if (imgs && imgs.length) { %>
+        <div style="margin-top:8px">
+          <p>Ảnh hiện có:</p>
+          <% imgs.forEach(function(img){ %>
+            <div style="display:inline-block;margin-right:8px;text-align:center">
+              <img src="<%= img %>" style="width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid #eee" />
+              <div><label><input type="checkbox" name="removeImages" value="<%= img %>" /> Xóa</label></div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+      <div style="margin-top:8px">
+        <button type="submit" class="btn">Lưu</button>
+        <a href="/admin" class="link-btn">Huỷ</a>
+      </div>
+    </form>
+    </div>
+  </div>
+</div>

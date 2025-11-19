@@ -1,0 +1,48 @@
+<h2>Quản lý đơn hàng</h2>
+<table>
+  <thead><tr><th>ID</th><th>User</th><th>Total</th><th>Items</th><th>Action</th></tr></thead>
+  <tbody>
+    <% orders.forEach(o=>{ %>
+      <tr>
+        <td><%= o.order.id %></td>
+        <td><%= o.order.user_id %></td>
+        <td><%= o.order.total.toLocaleString() %></td>
+  <!-- status column removed per admin request -->
+        <td>
+          <ul>
+            <% o.items.forEach(i=>{ %>
+              <li>
+                <%= i.title %>
+                <% if (i.option) { %>
+                  <small style="color:var(--muted)"> — Size: <%= i.option %></small>
+                <% } %>
+                x <%= i.quantity %>
+              </li>
+            <% }) %>
+          </ul>
+        </td>
+        <td style="display:flex;gap:8px;align-items:center">
+          <a href="/admin/orders/<%= o.order.id %>" class="btn-ghost">Xem</a>
+          <% if (o.order.status === 'cancelled') { %>
+            <!-- If the order is cancelled, only allow viewing. No edit/delete/status controls. -->
+            <div style="padding:6px 10px;border-radius:6px;background:#fff6f6;color:#b91c1c;border:1px solid rgba(239,68,68,0.06)">Đã bị hủy</div>
+          <% } else { %>
+            <a href="/admin/orders/<%= o.order.id %>/edit" class="btn-ghost">Sửa</a>
+            <form method="post" action="/admin/orders/<%= o.order.id %>/delete" onsubmit="return confirm('Xác nhận xóa đơn hàng #<%= o.order.id %>?')" style="display:inline">
+              <button type="submit" class="btn-detail">Xóa</button>
+            </form>
+            <form method="post" action="/admin/orders/<%= o.order.id %>/status" style="margin-left:8px">
+              <select name="status">
+                <option value="pending" <%= o.order.status==='pending'?'selected':'' %>>pending</option>
+                <option value="paid" <%= o.order.status==='paid'?'selected':'' %>>paid</option>
+                <option value="shipped" <%= o.order.status==='shipped'?'selected':'' %>>shipped</option>
+                <option value="cancelled" <%= o.order.status==='cancelled'?'selected':'' %>>cancelled</option>
+              </select>
+              <button type="submit">Update</button>
+            </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>

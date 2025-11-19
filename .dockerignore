@@ -1,0 +1,7 @@
+node_modules
+npm-debug.log
+data.sqlite
+sessions.sqlite
+.env
+public/images/*.jpg
+public/images/*.png

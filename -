@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tìm kiếm: ao</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="header-bar">
+      <div class="container">
+        <div class="top-left">
+          <div class="brand"><a href="/">Cửa hàng quần áo</a></div>
+          <div class="hotline">Hotline: <strong>19001508</strong></div>
+        </div>
+        <div class="top-center">
+          <form action="/search" method="get" class="search-form">
+            <input name="q" placeholder="Tìm kiếm sản phẩm..." />
+            <button type="submit">Tìm</button>
+          </form>
+        </div>
+        <div class="top-right">
+          <a href="/cart" class="cart-link">Giỏ hàng (0)</a>
+          
+            <a href="/login" class="link-btn">Đăng nhập</a>
+            <a href="/register" class="link-btn">Đăng ký</a>
+          
+        </div>
+      </div>
+      <nav class="category-nav">
+        <div class="container">
+          <a href="/" class="cat">Tất cả</a>
+          
+            <a href="/?category=qu%E1%BA%A7n" class="cat">quần</a>
+          
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      
+<h2>Sản phẩm</h2>
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-left">
+      <h1>Ưu đãi mùa này</h1>
+      <p>Giảm giá lớn cho nhiều mặt hàng - Xem ngay!</p>
+      <a href="/" class="btn">Mua ngay</a>
+    </div>
+    <div class="hero-right">
+      <img src="/images/placeholder-blue.svg" alt="banner" />
+    </div>
+  </div>
+</div>
+<nav class="categories">
+  <a href="/" class="cat active">Tất cả</a>
+  
+    <a href="/?category=qu%E1%BA%A7n" class="cat ">quần</a>
+  
+</nav>
+<div class="products">
+  
+</div>
+
+    </main>
+
+    
+    <div class="floating-actions">
+  <a href="tel:0989248835">📞</a>
+  <a href="#">💬</a>
+  <a href="#">🛒</a>
+</div>
+    <script src="/js/cart.js"></script>
+    <script src="/js/qrcode.min.js"></script>
+  </body>
+</html>

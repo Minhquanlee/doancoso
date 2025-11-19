@@ -1,0 +1,18 @@
+<div class="auth-card">
+  <h2>Đăng nhập</h2>
+  <form method="post" action="/login" class="auth-form">
+    <label>Email
+      <input type="email" name="email" required />
+    </label>
+    <label>Mật khẩu
+      <input type="password" name="password" required />
+    </label>
+    <div class="auth-actions">
+      <button type="submit" class="btn">Đăng nhập</button>
+      <a href="/register" class="link-btn">Đăng ký</a>
+    </div>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="text-muted" style="color:#b91c1c;margin-top:12px"><%= error %></div>
+    <% } %>
+  </form>
+</div>

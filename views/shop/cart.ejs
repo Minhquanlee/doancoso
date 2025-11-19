@@ -1,0 +1,50 @@
+<h2>Giỏ hàng</h2>
+<% if (items.length === 0) { %>
+  <p>Giỏ hàng trống</p>
+<% } else { %>
+  <form method="post" action="/cart/update">
+  <table>
+    <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Giá</th><th></th></tr></thead>
+    <tbody>
+    <% items.forEach(function(it, idx){ %>
+      <tr>
+        <td style="display:flex;gap:10px;align-items:center"><img loading="lazy" class="cart-thumb" src="<%= it.product.safeImage || it.product.image %>" alt=""/><span><%= it.product.title %></span></td>
+        <td>
+          <input type="number" name="qty[]" value="<%= it.quantity %>" min="0" />
+          <input type="hidden" name="productId[]" value="<%= it.product.id %>" />
+          <% if (it.option) { %>
+            <div>Size: <strong><%= it.option %></strong></div>
+            <input type="hidden" name="option[]" value="<%= it.option %>" />
+          <% } %>
+        </td>
+        <td><%= (it.product.price * it.quantity).toLocaleString() %> VND</td>
+        <td>
+          <% const key = it.option ? ('' + it.product.id + '::' + it.option) : ('' + it.product.id); %>
+          <button type="button" onclick="removeItem('<%= key %>')">Xóa</button>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <p>Tổng: <strong><%= total.toLocaleString() %> VND</strong></p>
+  <div>
+    <button type="submit">Cập nhật giỏ</button>
+    <a href="/checkout"><button type="button">Thanh toán</button></a>
+  </div>
+  </form>
+<% } %>
+
+<!-- Order status moved to /order-status -->
+
+  <script>
+    function removeItem(key){
+      // create a small form and submit to /cart/remove to avoid nesting forms
+      const f = document.createElement('form');
+      f.method = 'post';
+      f.action = '/cart/remove';
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'productId'; inp.value = key; f.appendChild(inp);
+      document.body.appendChild(f);
+      f.submit();
+    }
+  </script>

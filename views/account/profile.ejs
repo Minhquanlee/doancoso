@@ -1,0 +1,121 @@
+<div class="account-profile">
+  <!-- left: main profile form -->
+  <div class="addresses-card">
+    <h3>Hồ Sơ Của Tôi</h3>
+    <p class="text-muted">Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="small-card" style="background:#fff6f6;border:1px solid rgba(220,53,69,0.08);color:var(--danger);margin-bottom:12px;padding:10px 12px;border-radius:8px">
+        <strong>Lỗi:</strong> <%= error %>
+      </div>
+    <% } %>
+
+    <form method="post" action="/account" class="profile-form" style="margin-top:12px">
+      <% const email = user && user.email ? user.email : ''; %>
+      <% const uname = email.split('@')[0] || (user && user.name) || ''; %>
+      <% function maskEmail(e){ if(!e) return ''; const parts = e.split('@'); const name=parts[0]; const domain=parts[1]||''; if(name.length<=2) return name.replace(/./g,'*')+'@'+domain; return name[0] + '*'.repeat(Math.max(3,name.length-2)) + '@' + domain; } %>
+
+      <label>Tên đăng nhập
+        <input type="text" name="username" value="<%= uname %>" readonly />
+        <div class="text-muted" style="font-size:13px;margin-top:6px">Tên Đăng nhập chỉ có thể thay đổi một lần.</div>
+      </label>
+
+      <label>Tên
+        <input type="text" name="name" value="<%= user ? user.name : '' %>" required />
+      </label>
+
+      <label>Email
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="email" value="<%= maskEmail(email) %>" readonly style="flex:1" />
+          <a href="#" class="link-btn">Thay Đổi</a>
+        </div>
+      </label>
+
+      <label>Số điện thoại
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="tel" name="phone" value="<%= user ? user.phone : '' %>" />
+          <a href="#" class="link-btn">Thay Đổi</a>
+        </div>
+      </label>
+
+      <label>Giới tính
+        <div style="display:flex;gap:12px;align-items:center;margin-top:6px">
+          <label><input type="radio" name="gender" value="male" <%= (user && user.gender === 'male') ? 'checked' : '' %> > Nam</label>
+          <label><input type="radio" name="gender" value="female" <%= (user && user.gender === 'female') ? 'checked' : '' %> > Nữ</label>
+          <label><input type="radio" name="gender" value="other" <%= (user && user.gender === 'other') ? 'checked' : '' %> > Khác</label>
+        </div>
+      </label>
+
+      <label>Ngày sinh
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="date" name="dob" value="<%= user && user.dob ? user.dob : '' %>" style="flex:1" />
+          <a href="#" class="link-btn">Thay Đổi</a>
+        </div>
+      </label>
+
+      <div style="margin-top:12px">
+        <button class="save-btn" type="submit">Lưu</button>
+      </div>
+    </form>
+
+      <!-- Shipping addresses list -->
+      <div style="margin-top:18px">
+        <h4>Địa chỉ giao hàng</h4>
+        <% if (addresses && addresses.length) { %>
+          <% addresses.forEach(function(a){ %>
+            <% if (typeof user !== 'undefined' && a.user_id && Number(a.user_id) !== Number(user.id)) { return; } %>
+            <div class="address-item" style="margin-top:10px">
+              <div class="addr-meta">
+                <div style="font-weight:600"><%= a.recipient %> <% if (a.is_default) { %><span class="default-badge">Mặc định</span><% } %></div>
+                <div class="text-muted" style="margin-top:6px"><%= a.phone %> • <%= a.street %>, <%= a.city %> <%= a.postcode ? (' - ' + a.postcode) : '' %></div>
+              </div>
+              <div class="addr-actions">
+                <% if (!a.is_default) { %>
+                  <form method="post" action="/account/addresses/<%= a.id %>/set-default" style="display:inline">
+                    <button class="link-btn" type="submit">Đặt làm mặc định</button>
+                  </form>
+                <% } %>
+                <form method="post" action="/account/addresses/<%= a.id %>/delete" style="display:inline">
+                  <button class="remove" type="submit">Xóa</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        <% } else { %>
+          <div class="text-muted" style="margin-top:8px">Bạn chưa có địa chỉ giao hàng nào.</div>
+        <% } %>
+      </div>
+
+      <!-- Add new address -->
+      <div style="margin-top:18px">
+        <h4>Thêm địa chỉ giao hàng</h4>
+        <form method="post" action="/account/addresses" class="new-address" style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+          <input name="recipient" placeholder="Người nhận (ví dụ: Nguyễn Văn A)" required />
+          <input name="phone" placeholder="Số điện thoại" required />
+          <input name="street" placeholder="Địa chỉ (số nhà, đường)" required />
+          <input name="city" placeholder="Tỉnh / Thành phố" required />
+          <input name="postcode" placeholder="Số điện thoại 2 (Nếu có)" />
+          <div>
+            <button class="add-btn" type="submit">Thêm địa chỉ</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+
+  <!-- right: avatar card -->
+  <div class="profile-card">
+    <div class="avatar-wrap">
+      <div class="avatar-preview">
+        <img src="<%= (user && user.avatar) ? user.avatar : '/images/default.svg' %>" alt="avatar" />
+      </div>
+      <form method="post" action="/account/avatar" enctype="multipart/form-data" style="width:100%">
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+          <input type="file" name="avatar" accept="image/*" style="width:180px" />
+          <button class="btn-update" type="submit">Chọn Ảnh</button>
+          <div class="text-muted" style="font-size:13px;text-align:center">Dung lượng file tối đa 1 MB<br/>Định dạng: .JPEG, .PNG</div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

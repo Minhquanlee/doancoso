@@ -1,0 +1,85 @@
+<div class="admin-order-detail">
+  <div class="card-main">
+    <div class="card-header">
+      <h2>Chi tiết đơn hàng #<%= order.id %></h2>
+      <div class="detail-actions">
+        <a href="/admin/orders" class="btn-ghost">Quay lại</a>
+        <a href="/admin/orders/<%= order.id %>/edit" class="btn-ghost" style="margin-left:8px">Sửa đơn</a>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <section class="detail-left">
+        <div class="kv">
+          <div class="kv-item">
+            <div class="kv-label">Mã</div>
+            <div class="kv-value"><%= order.id %></div>
+          </div>
+          <div class="kv-item">
+            <div class="kv-label">Tổng</div>
+            <div class="kv-value"><%= order.total.toLocaleString() %> VND</div>
+          </div>
+          <div class="kv-item">
+            <div class="kv-label">Trạng thái</div>
+            <div class="kv-value"><span class="order-status-badge <%= order.status %>"><%= order.status.toUpperCase() %></span></div>
+          </div>
+          <div class="kv-item">
+            <div class="kv-label">Ngày</div>
+            <div class="kv-value"><%= order.created_at %></div>
+          </div>
+        </div>
+
+        <h4 style="margin-top:18px">Sản phẩm</h4>
+        <ul class="order-products">
+          <% items.forEach(function(i){ %>
+            <li class="product-row">
+              <div class="product-info"><%= i.title %> <% if(i.option){ %> <small class="text-muted">— Size: <%= i.option %></small> <% } %> <span class="text-muted">x <%= i.quantity %></span></div>
+              <div class="product-price"><%= ( (i.price||0) * i.quantity ).toLocaleString() %> VND</div>
+            </li>
+          <% }) %>
+        </ul>
+      </section>
+    </div>
+
+    <!-- Move customer & shipping info below the products for cleaner layout -->
+    <div class="below-info">
+      <div class="card small-card customer-card">
+        <h4>Thông tin khách hàng</h4>
+        <% if (user) { %>
+          <div class="kv-item">
+            <div class="kv-label">Tên</div>
+            <div class="kv-value"><%= user.name %></div>
+          </div>
+          <div class="kv-item">
+            <div class="kv-label">Email</div>
+            <div class="kv-value"><%= user.email %></div>
+          </div>
+          <div class="kv-item">
+            <div class="kv-label">Điện thoại</div>
+            <div class="kv-value"><%= user.phone || '-' %></div>
+          </div>
+        <% } else { %>
+          <p class="text-muted">Người dùng không tồn tại</p>
+        <% } %>
+      </div>
+
+      <div class="card small-card address-card" style="margin-top:12px">
+        <h4>Địa chỉ giao hàng</h4>
+        <% const a = orderAddress || defaultAddress; %>
+        <% if (a) { %>
+          <div class="ship-card">
+            <div class="ship-name"><%= a.recipient %> <% if (a.is_default) { %><span class="default-badge">Mặc định</span><% } %></div>
+            <div class="ship-phone text-muted"><%= a.phone %></div>
+            <div class="ship-street text-muted" style="margin-top:6px">
+              <div><%= a.street %></div>
+              <div><%= a.city %> <%= a.postcode ? (' - ' + a.postcode) : '' %></div>
+            </div>
+          </div>
+        <% } else { %>
+          <p class="text-muted">Không tìm thấy địa chỉ giao hàng cho người dùng này.</p>
+        <% } %>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
