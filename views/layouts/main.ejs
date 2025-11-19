@@ -29,6 +29,8 @@
           <% } %>
         </div>
         <div class="top-right">
+          <!-- mobile search button (visible on small screens) -->
+          <button class="mobile-search-btn" aria-label="Tìm kiếm" title="Tìm kiếm"><i class="fas fa-search"></i></button>
           <% if (!(currentUser && currentUser.role === 'admin')) { %>
             <a href="/cart" class="icon-btn" title="Giỏ hàng">
               <i class="fas fa-shopping-cart"></i>
@@ -83,6 +85,21 @@
     <div class="mobile-menu" role="navigation" aria-hidden="true">
       <div class="mobile-menu-inner container">
         <div class="mobile-menu-top">
+          <% if (currentUser) { %>
+            <div class="mobile-user">
+              <a href="/account" class="mobile-user-link">
+                <img src="<%= currentUser.avatar ? currentUser.avatar : '/images/avatar.jpg' %>" alt="avatar" class="mobile-user-avatar" />
+                <div class="mobile-user-meta">
+                  <div class="mobile-user-name"><%= currentUser.name || currentUser.email %></div>
+                  <div class="mobile-user-role"><%= currentUser.role %></div>
+                </div>
+              </a>
+            </div>
+          <% } else { %>
+            <div class="mobile-user">
+              <a href="/login" class="mobile-user-link">Đăng nhập</a>
+            </div>
+          <% } %>
           <div class="brand"><a href="/">Q &amp; N SHOP</a></div>
           <button class="mobile-close" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
         </div>
@@ -102,12 +119,28 @@
             <a href="/register">Đăng ký</a>
           <% } %>
         </div>
+
+        <div class="mobile-bottom-actions">
+          <a class="call-btn" href="tel:19001508" aria-label="Gọi hotline"><i class="fas fa-phone"></i> Gọi</a>
+          <a class="cart-btn" href="/cart" aria-label="Giỏ hàng"><i class="fas fa-shopping-cart"></i> Giỏ hàng (<span class="mobile-cart-count"><%= cartCount || 0 %></span>)</a>
+        </div>
       </div>
     </div>
 
     <main>
       <%- body %>
     </main>
+
+    <!-- Mobile search overlay -->
+    <div class="mobile-search-overlay" aria-hidden="true">
+      <div class="mobile-search-box">
+        <form action="/search" method="get" class="mobile-search-form">
+          <input name="q" placeholder="Tìm kiếm sản phẩm..." aria-label="Tìm kiếm" />
+          <button type="submit" class="icon-btn"><i class="fas fa-search"></i></button>
+        </form>
+        <button class="mobile-search-close link-btn" aria-label="Đóng tìm kiếm"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
 
     <footer class="site-footer">
       <div class="container">
@@ -248,6 +281,20 @@
           }, {passive:false});
         }catch(err){ console.error('search-anim', err); }
       });
+      // mobile search overlay handlers
+      (function(){
+        var openBtn = document.querySelector('.mobile-search-btn');
+        var overlay = document.querySelector('.mobile-search-overlay');
+        var closeBtn = document.querySelector('.mobile-search-close');
+        var input = overlay && overlay.querySelector('input[name="q"]');
+        function openSearch(){ if (!overlay) return; overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); input && input.focus(); }
+        function closeSearch(){ if (!overlay) return; overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true'); }
+        openBtn && openBtn.addEventListener('click', function(e){ openSearch(); e.preventDefault(); });
+        closeBtn && closeBtn.addEventListener('click', function(e){ closeSearch(); e.preventDefault(); });
+        // close when clicking outside the search box
+        overlay && overlay.addEventListener('click', function(e){ if (e.target === overlay) closeSearch(); });
+        document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeSearch(); });
+      })();
         // mobile menu toggle
         (function(){
           var hamb = document.querySelector('.mobile-hamburger');
@@ -259,6 +306,8 @@
           document.addEventListener('click', function(e){
             if (e.target.closest && e.target.closest('.mobile-hamburger')){ openMenu(); e.preventDefault(); return; }
             if (e.target.closest && e.target.closest('.mobile-close')){ closeMenu(); e.preventDefault(); return; }
+            // close when clicking a link inside mobile menu
+            if (e.target.closest && e.target.closest('.mobile-menu') && e.target.closest('a')){ closeMenu(); }
             // click outside mobile menu closes it
             if (body.classList.contains('mobile-menu-open') && e.target.closest && !e.target.closest('.mobile-menu') && !e.target.closest('.mobile-hamburger')){
               closeMenu();

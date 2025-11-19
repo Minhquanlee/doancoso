@@ -15,6 +15,40 @@
 body.mobile-menu-open{overflow:hidden}
 body.mobile-menu-open .mobile-menu{display:flex}
 body.mobile-menu-open .mobile-hamburger{color:#fff}
+/* slide in animation */
+.mobile-menu-inner{transform:translateX(100%);transition:transform .28s cubic-bezier(.22,.9,.33,1);box-shadow:-8px 0 30px rgba(2,6,23,0.12)}
+body.mobile-menu-open .mobile-menu-inner{transform:translateX(0)}
+
+.mobile-user{display:flex;align-items:center;gap:12px}
+.mobile-user-avatar{width:48px;height:48px;border-radius:999px;object-fit:cover;border:2px solid rgba(16,24,40,0.04)}
+.mobile-user-meta{display:flex;flex-direction:column}
+.mobile-user-name{font-weight:800}
+.mobile-user-role{font-size:12px;color:var(--muted)}
+
+.mobile-bottom-actions{display:flex;gap:12px;position:sticky;bottom:18px;padding-top:12px;margin-top:18px}
+.mobile-bottom-actions a{flex:1;display:inline-flex;align-items:center;gap:8px;justify-content:center;padding:12px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none}
+.mobile-bottom-actions .call-btn{background:#ff6b6b}
+.mobile-bottom-actions .cart-btn{background:linear-gradient(90deg,var(--accent),#7b5cff)}
+.mobile-cart-count{font-weight:900}
+
+/* ensure mobile menu links are touch friendly */
+.mobile-menu .mobile-cats a, .mobile-menu .mobile-links a{padding:12px 10px;font-size:15px}
+
+/* Mobile search overlay styles */
+.mobile-search-btn{display:none;border:none;background:transparent;color:var(--accent);font-size:18px;padding:6px}
+.mobile-search-overlay{display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:300;align-items:center;justify-content:center}
+.mobile-search-overlay.show{display:flex}
+.mobile-search-box{background:var(--card);width:100%;max-width:720px;padding:12px 16px;border-radius:10px;display:flex;gap:8px;align-items:center}
+.mobile-search-form{display:flex;flex:1;gap:8px}
+.mobile-search-form input{flex:1;padding:12px;border-radius:8px;border:1px solid #e6e9ee;font-size:16px}
+.mobile-search-close{border:none;background:transparent;color:var(--muted);font-size:18px}
+
+/* show mobile search button and hide top-center search on small screens */
+@media (max-width:520px){
+	.search-form{display:none}
+	.mobile-search-btn{display:inline-flex}
+}
+
 :root{
 	/* Color palette variables (customized per design)
 	   Primary/Accent: #6f42c1
