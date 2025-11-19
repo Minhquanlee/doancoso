@@ -12,10 +12,28 @@
     </label>
     <label>Mật khẩu
       <input name="password" type="password" required />
+      <div id="pw-hint" style="font-size:0.9em;color:#444;margin-top:6px">Mật khẩu: tối thiểu 8 ký tự, ít nhất 1 chữ hoa và 1 ký tự đặc biệt (ví dụ: @ ! ?)</div>
+      <div id="pw-error" style="color:#b91c1c;margin-top:8px;display:none"></div>
     </label>
     <div class="auth-actions">
       <button type="submit" class="btn">Đăng ký</button>
       <a href="/login" class="link-btn">Đăng nhập</a>
     </div>
   </form>
+  <script>
+    (function(){
+      const form = document.querySelector('.auth-form');
+      if (!form) return;
+      form.addEventListener('submit', function(e){
+        const pw = (form.querySelector('input[name="password"]')||{}).value || '';
+        const msg = 'Mật khẩu phải có ít nhất 8 ký tự, chứa ít nhất 1 chữ hoa và 1 ký tự đặc biệt như @ ! ?';
+        if (pw.length < 8 || !/[A-Z]/.test(pw) || !/[@!?]/.test(pw)) {
+          e.preventDefault();
+          const err = document.getElementById('pw-error');
+          if (err) { err.textContent = msg; err.style.display = 'block'; }
+          else alert(msg);
+        }
+      });
+    })();
+  </script>
 </div>

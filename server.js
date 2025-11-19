@@ -448,7 +448,10 @@ app.post('/register',(req,res)=>{
   if (!email || !password) return res.render('auth/register', { error: 'Vui lòng điền email và mật khẩu.' });
   const normalizedEmail = (email || '').toLowerCase().trim();
   if (!normalizedEmail.includes('@')) return res.render('auth/register', { error: 'Email không hợp lệ (thiếu @).' });
-  if (password.length < 6) return res.render('auth/register', { error: 'Mật khẩu phải có ít nhất 6 ký tự.' });
+  // Password policy: at least 8 chars, one uppercase, one special char (@ ! ?)
+  if (password.length < 8) return res.render('auth/register', { error: 'Mật khẩu phải có ít nhất 8 ký tự, chứa ít nhất 1 chữ hoa và 1 ký tự đặc biệt như @ ! ?' });
+  if (!/[A-Z]/.test(password)) return res.render('auth/register', { error: 'Mật khẩu phải có ít nhất 8 ký tự, chứa ít nhất 1 chữ hoa và 1 ký tự đặc biệt như @ ! ?' });
+  if (!/[@!?]/.test(password)) return res.render('auth/register', { error: 'Mật khẩu phải có ít nhất 8 ký tự, chứa ít nhất 1 chữ hoa và 1 ký tự đặc biệt như @ ! ?' });
   const hash = bcrypt.hashSync(password,10);
   try {
     db.prepare('INSERT INTO users (name,email,password) VALUES (?,?,?)').run(name,normalizedEmail,hash);
