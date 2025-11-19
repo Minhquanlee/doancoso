@@ -441,6 +441,26 @@ main{padding:36px;max-width:1200px;margin:0 auto}
 	.account-toggle img{width:40px;height:40px}
 	.search-form input{padding-left:12px;padding-right:48px}
 }
+
+/* Checkout-specific styles */
+.checkout-page{max-width:960px;margin:18px auto;padding:12px}
+.checkout-grid{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+.checkout-form h3,.order-summary h3{margin-top:0}
+.checkout-form label{display:block;margin-bottom:10px}
+.checkout-form input{width:100%;padding:10px;border:1px solid #e6e9ee;border-radius:8px}
+.form-actions{display:flex;gap:12px;margin-top:12px}
+.summary-list{background:#fff;border-radius:8px;padding:10px;box-shadow:0 8px 24px rgba(2,6,23,0.04);max-height:420px;overflow:auto}
+.summary-row{display:flex;justify-content:space-between;padding:8px 6px;border-bottom:1px solid #f3f4f6}
+.summary-row:last-child{border-bottom:none}
+.summary-total{padding:12px 6px;font-size:16px;text-align:right}
+
+@media (max-width:760px){
+	.checkout-grid{grid-template-columns:1fr;}
+	.order-summary{order:2}
+	.checkout-form{order:1}
+	.form-actions{flex-direction:column}
+	.form-actions .btn{width:100%}
+}
 .auth-actions{display:flex;gap:10px;align-items:center}
 
 /* Admin form card */
