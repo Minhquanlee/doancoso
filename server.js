@@ -682,13 +682,23 @@ app.post('/buy-now', (req,res)=>{
   if (!p) return res.redirect('/');
   const q = parseInt(qty)||1;
   const total = p.price * q;
-  const info = db.prepare('INSERT INTO orders (user_id,total,status) VALUES (?,?,?)').run(req.session.user.id,total,'paid');
-  const orderId = info.lastInsertRowid;
-  db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)').run(orderId,p.id,q,p.price, option||null);
-  // clear session cart and persisted cart for this user
-  req.session.cart = {};
-  try { if (req.session.user && req.session.user.id) saveCartForUser(req.session.user.id, {}); } catch(e){}
-  res.render('shop/checkout-success', { orderId, total });
+  // if user has a default address, create order immediately with that address
+  const defaultAddr = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
+  if (defaultAddr) {
+    const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(req.session.user.id,total,'paid', defaultAddr.id);
+    const orderId = info.lastInsertRowid;
+    db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)').run(orderId,p.id,q,p.price, option||null);
+    // clear session cart and persisted cart for this user
+    req.session.cart = {};
+    try { if (req.session.user && req.session.user.id) saveCartForUser(req.session.user.id, {}); } catch(e){}
+    return res.render('shop/checkout-success', { orderId, total });
+  }
+
+  // otherwise add to cart and redirect to checkout so user can fill address
+  const key = option ? `${productId}::${option}` : `${productId}`;
+  req.session.cart = req.session.cart || {};
+  req.session.cart[key] = (req.session.cart[key] || 0) + q;
+  return res.redirect('/checkout');
 });
 
 app.post('/cart/remove', (req,res)=>{
@@ -821,8 +831,10 @@ app.post('/checkout',(req,res)=>{
   let addrId = null;
   try {
     if (recipient && phone && street && city) {
+      // make this address the user's default: clear previous default then insert as default
+      try { db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.session.user.id); } catch(e) { /* ignore */ }
       const ainfo = db.prepare('INSERT INTO addresses (user_id,recipient,phone,street,city,postcode,is_default) VALUES (?,?,?,?,?,?,?)')
-        .run(req.session.user.id, recipient, phone, street, city, postcode || null, 0);
+        .run(req.session.user.id, recipient, phone, street, city, postcode || null, 1);
       addrId = ainfo.lastInsertRowid;
     }
   } catch(e) { console.error('Address insert error', e.message); }
@@ -916,9 +928,13 @@ app.get('/stripe-success', async (req,res)=>{
     try {
       const sa = req.session.checkoutAddress;
       if (sa && sa.recipient && sa.phone && sa.street && sa.city) {
+        // clear previous default for user
+        try { db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.session.user.id); } catch(e) { /* ignore */ }
         const ainfo = db.prepare('INSERT INTO addresses (user_id,recipient,phone,street,city,postcode,is_default) VALUES (?,?,?,?,?,?,?)')
-          .run(req.session.user.id, sa.recipient, sa.phone, sa.street, sa.city, sa.postcode || null, 0);
+          .run(req.session.user.id, sa.recipient, sa.phone, sa.street, sa.city, sa.postcode || null, 1);
         addrId = ainfo.lastInsertRowid;
+        // clear session saved checkout address after persisting
+        try { delete req.session.checkoutAddress; } catch(e){}
       }
     } catch(e) { console.error('Stripe address save error', e.message); }
 

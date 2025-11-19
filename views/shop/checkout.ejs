@@ -20,7 +20,7 @@
                 <input type="hidden" name="street" value="<%= defaultAddress.street %>" />
                 <input type="hidden" name="city" value="<%= defaultAddress.city %>" />
                 <input type="hidden" name="postcode" value="<%= defaultAddress.postcode || '' %>" />
-                <button class="btn primary-buy" type="submit">Thanh toán với địa chỉ mặc định</button>
+                <button class="btn primary-buy" type="submit">Thanh toán</button>
               </form>
               <button id="change-address" class="btn btn-ghost" style="margin-left:8px">Thay đổi địa chỉ</button>
             </div>
@@ -46,7 +46,6 @@
 
           <div class="form-actions">
             <button class="btn primary-buy" type="submit">Thanh toán (mô phỏng)</button>
-            <button id="qr-pay" type="button" class="btn btn-ghost">Hiển thị mã QR</button>
           </div>
         </form>
       </section>
@@ -69,28 +68,7 @@
       </aside>
     </div>
 
-    <!-- QR modal (kept simple) -->
-    <div id="qr-modal" class="img-modal" aria-hidden="true">
-      <div class="img-modal-content" style="background:#fff;padding:16px;border-radius:8px;max-width:360px;text-align:center">
-        <h3>Quét QR để thanh toán</h3>
-        <div id="qr-target"></div>
-        <p id="qr-amount" style="margin-top:8px;font-weight:700"></p>
-        <div style="margin-top:8px"><button id="qr-close" class="link-btn">Đóng</button></div>
-      </div>
-    </div>
-
-    <script src="/js/qrcode.min.js"></script>
-    <script>
-      document.getElementById('qr-pay').addEventListener('click', ()=>{
-        const modal = document.getElementById('qr-modal');
-        const amount = '<%= total %>';
-        document.getElementById('qr-amount').textContent = (parseInt(amount)||0).toLocaleString() + ' VND';
-        renderQRCode(document.getElementById('qr-target'), 'PAY:'+amount);
-        modal.classList.add('show');
-        modal.setAttribute('aria-hidden','false');
-      });
-      document.getElementById('qr-close').addEventListener('click', ()=>{ const m=document.getElementById('qr-modal'); m.classList.remove('show'); m.setAttribute('aria-hidden','true'); });
-    </script>
+    <!-- QR payment removed per request -->
 
     <% if (stripePublishable) { %>
       <script src="https://js.stripe.com/v3/"></script>
