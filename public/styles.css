@@ -398,6 +398,49 @@ main{padding:36px;max-width:1200px;margin:0 auto}
 .auth-card h2{margin-top:0}
 .auth-form label{display:block;margin-bottom:10px}
 .auth-form input{width:100%;padding:8px;border-radius:6px;border:1px solid #e6e9ee}
+
+/* Mobile-specific tweaks */
+@media (max-width:520px){
+	:root{--nav-height:56px}
+	.header-bar .container{padding:8px 12px;height:var(--nav-height);align-items:center}
+	.header-bar .top-left{gap:8px}
+	.brand a{font-size:16px}
+	.header-bar .hotline{display:none}
+	.header-bar .top-center{order:3;flex-basis:100%;width:100%;padding:8px 0}
+	.search-form{max-width:100%;padding:0 6px}
+	.search-form input{height:44px;padding:10px 44px 10px 12px}
+	.search-form button{right:10px;width:40px;height:40px}
+	.header-bar .top-right{gap:6px}
+	.icon-btn{width:40px;height:40px}
+
+	.category-nav{padding:8px 0}
+	.category-nav .container{overflow-x:auto;display:flex;gap:10px;padding:6px}
+	.category-nav .cat{white-space:nowrap;flex:0 0 auto}
+
+	/* make product cards full width and touch-friendly */
+	.card{width:100%;border-radius:10px}
+	.image-wrap{height:200px}
+	.btn{padding:12px 14px}
+	.btn-ghost, .btn-ghost:hover{padding:10px 12px}
+
+	/* product detail stacking tweaks */
+	.product-detail{padding:12px;gap:12px}
+	.product-detail .gallery{padding:12px}
+	.product-detail .details{padding:6px}
+	.buy-form .actions{flex-direction:column;align-items:stretch}
+	.buy-form .actions .btn{width:100%}
+
+	/* footer stacking */
+	.site-footer .footer-grid{grid-template-columns:1fr}
+	.site-footer .footer-bottom{flex-direction:column;align-items:flex-start}
+}
+
+/* Extra small screens: increase touch targets */
+@media (max-width:380px){
+	.icon-btn{width:44px;height:44px}
+	.account-toggle img{width:40px;height:40px}
+	.search-form input{padding-left:12px;padding-right:48px}
+}
 .auth-actions{display:flex;gap:10px;align-items:center}
 
 /* Admin form card */
