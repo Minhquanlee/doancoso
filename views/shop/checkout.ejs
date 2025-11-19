@@ -76,7 +76,17 @@
       <script>
         const stripe = Stripe('<%= stripePublishable %>');
         document.getElementById('stripe-pay') && document.getElementById('stripe-pay').addEventListener('click', async ()=>{
-          const r = await fetch('/create-stripe-session', { method: 'POST', credentials: 'same-origin' });
+          // collect shipping form values and send to server so we can attach to the order after Stripe
+          const form = document.querySelector('.checkout-form form');
+          const fd = new FormData(form);
+          const body = {
+            recipient: fd.get('recipient'),
+            phone: fd.get('phone'),
+            street: fd.get('street'),
+            city: fd.get('city'),
+            postcode: fd.get('postcode')
+          };
+          const r = await fetch('/create-stripe-session', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
           const j = await r.json();
           if (j.id) stripe.redirectToCheckout({ sessionId: j.id });
           else alert('Stripe session error: ' + (j.error || 'unknown'));

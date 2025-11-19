@@ -814,7 +814,18 @@ app.post('/checkout',(req,res)=>{
     total += p.price * q;
     items.push({ product: p, quantity: q, option });
   }
-  const info = db.prepare('INSERT INTO orders (user_id,total,status) VALUES (?,?,?)').run(req.session.user.id,total,'paid');
+  // capture shipping info from the form and save as an address, then attach to order
+  const { recipient, phone, street, city, postcode } = req.body || {};
+  let addrId = null;
+  try {
+    if (recipient && phone && street && city) {
+      const ainfo = db.prepare('INSERT INTO addresses (user_id,recipient,phone,street,city,postcode,is_default) VALUES (?,?,?,?,?,?,?)')
+        .run(req.session.user.id, recipient, phone, street, city, postcode || null, 0);
+      addrId = ainfo.lastInsertRowid;
+    }
+  } catch(e) { console.error('Address insert error', e.message); }
+
+  const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(req.session.user.id,total,'paid', addrId);
   const orderId = info.lastInsertRowid;
   const insertItem = db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)');
   for (const it of items) {
@@ -837,6 +848,13 @@ app.post('/checkout',(req,res)=>{
 app.post('/create-stripe-session', async (req,res)=>{
   if (!stripeLib) return res.status(400).json({ error: 'Stripe not configured' });
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+  // allow client to POST shipping info here so we can attach it to the order after Stripe success
+  try {
+    const { recipient, phone, street, city, postcode } = req.body || {};
+    if (recipient && phone && street && city) {
+      req.session.checkoutAddress = { recipient, phone, street, city, postcode: postcode || null };
+    }
+  } catch(e) { /* ignore */ }
   const cart = req.session.cart || {};
   const line_items = [];
   for (const pid in cart) {
@@ -891,7 +909,18 @@ app.get('/stripe-success', async (req,res)=>{
       total += p.price * q;
       items.push({ product: p, quantity: q, option });
     }
-    const info = db.prepare('INSERT INTO orders (user_id,total,status) VALUES (?,?,?)').run(req.session.user.id,total,'paid');
+    // if we saved a checkoutAddress in session (from the checkout form), persist it and attach to order
+    let addrId = null;
+    try {
+      const sa = req.session.checkoutAddress;
+      if (sa && sa.recipient && sa.phone && sa.street && sa.city) {
+        const ainfo = db.prepare('INSERT INTO addresses (user_id,recipient,phone,street,city,postcode,is_default) VALUES (?,?,?,?,?,?,?)')
+          .run(req.session.user.id, sa.recipient, sa.phone, sa.street, sa.city, sa.postcode || null, 0);
+        addrId = ainfo.lastInsertRowid;
+      }
+    } catch(e) { console.error('Stripe address save error', e.message); }
+
+    const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(req.session.user.id,total,'paid', addrId);
     const orderId = info.lastInsertRowid;
   const insertItem = db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)');
   for (const it of items) insertItem.run(orderId, it.product.id, it.quantity, it.product.price, it.option || null);
