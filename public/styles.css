@@ -1,3 +1,20 @@
+.header-bar .top-right{display:flex;gap:10px;align-items:center}
+
+/* Mobile hamburger and off-canvas menu */
+.mobile-hamburger{display:none;border:none;background:transparent;color:var(--accent);font-size:20px;padding:8px;margin-right:6px}
+.mobile-menu{display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:220;align-items:flex-start;justify-content:flex-end}
+.mobile-menu-inner{width:320px;background:var(--card);height:100%;overflow:auto;padding:18px}
+.mobile-menu .mobile-menu-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.mobile-menu .mobile-cats a{display:inline-block;padding:8px 10px;margin:6px;border-radius:8px;background:#f8fafb;color:var(--muted);text-decoration:none}
+.mobile-menu .mobile-links{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.mobile-menu .mobile-links a, .mobile-menu .mobile-links button.link-btn{padding:10px 12px;border-radius:8px;background:transparent;text-align:left;border:none}
+.mobile-menu .mobile-links a:hover{background:#fbfbff}
+.mobile-close{border:none;background:transparent;font-size:18px;color:var(--muted)}
+
+/* when mobile menu open - show overlay and menu */
+body.mobile-menu-open{overflow:hidden}
+body.mobile-menu-open .mobile-menu{display:flex}
+body.mobile-menu-open .mobile-hamburger{color:#fff}
 :root{
 	/* Color palette variables (customized per design)
 	   Primary/Accent: #6f42c1
@@ -412,6 +429,11 @@ main{padding:36px;max-width:1200px;margin:0 auto}
 	.search-form button{right:10px;width:40px;height:40px}
 	.header-bar .top-right{gap:6px}
 	.icon-btn{width:40px;height:40px}
+
+  /* show hamburger on small screens */
+  .mobile-hamburger{display:inline-flex;align-items:center;justify-content:center}
+  /* hide desktop category nav, use mobile menu */
+  .category-nav{display:none}
 
 	.category-nav{padding:8px 0}
 	.category-nav .container{overflow-x:auto;display:flex;gap:10px;padding:6px}

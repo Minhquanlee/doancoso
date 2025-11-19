@@ -14,6 +14,9 @@
     <header class="header-bar">
       <div class="container">
         <div class="top-left">
+          <button class="mobile-hamburger" aria-label="Mở menu" aria-expanded="false">
+            <i class="fas fa-bars"></i>
+          </button>
           <div class="brand"><a href="/">Q &amp; N SHOP</a></div>
           <div class="hotline">Liên hệ : <strong>19001508</strong></div>
         </div>
@@ -75,6 +78,32 @@
         </div>
       </nav>
     </header>
+
+    <!-- Mobile off-canvas / collapsible menu (categories + account links) -->
+    <div class="mobile-menu" role="navigation" aria-hidden="true">
+      <div class="mobile-menu-inner container">
+        <div class="mobile-menu-top">
+          <div class="brand"><a href="/">Q &amp; N SHOP</a></div>
+          <button class="mobile-close" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mobile-cats">
+          <a href="/">Tất cả</a>
+          <% (categories||[]).forEach(function(c){ %>
+            <a href="/?category=<%= encodeURIComponent(c) %>"><%= c %></a>
+          <% }) %>
+        </div>
+        <div class="mobile-links">
+          <% if (currentUser) { %>
+            <a href="/account">Hồ sơ</a>
+            <a href="/order-status">Đơn hàng</a>
+            <form method="post" action="/logout"><button type="submit" class="link-btn">Đăng xuất</button></form>
+          <% } else { %>
+            <a href="/login">Đăng nhập</a>
+            <a href="/register">Đăng ký</a>
+          <% } %>
+        </div>
+      </div>
+    </div>
 
     <main>
       <%- body %>
@@ -219,6 +248,24 @@
           }, {passive:false});
         }catch(err){ console.error('search-anim', err); }
       });
+        // mobile menu toggle
+        (function(){
+          var hamb = document.querySelector('.mobile-hamburger');
+          var closeBtn = document.querySelector('.mobile-close');
+          var body = document.body;
+          var mobileMenu = document.querySelector('.mobile-menu');
+          function openMenu(){ body.classList.add('mobile-menu-open'); hamb && hamb.setAttribute('aria-expanded','true'); mobileMenu && mobileMenu.setAttribute('aria-hidden','false'); }
+          function closeMenu(){ body.classList.remove('mobile-menu-open'); hamb && hamb.setAttribute('aria-expanded','false'); mobileMenu && mobileMenu.setAttribute('aria-hidden','true'); }
+          document.addEventListener('click', function(e){
+            if (e.target.closest && e.target.closest('.mobile-hamburger')){ openMenu(); e.preventDefault(); return; }
+            if (e.target.closest && e.target.closest('.mobile-close')){ closeMenu(); e.preventDefault(); return; }
+            // click outside mobile menu closes it
+            if (body.classList.contains('mobile-menu-open') && e.target.closest && !e.target.closest('.mobile-menu') && !e.target.closest('.mobile-hamburger')){
+              closeMenu();
+            }
+          });
+          document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') closeMenu(); });
+        })();
     </script>
   </body>
 </html>
