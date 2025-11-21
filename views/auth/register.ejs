@@ -27,7 +27,7 @@
       form.addEventListener('submit', function(e){
         const pw = (form.querySelector('input[name="password"]')||{}).value || '';
         const msg = 'Mật khẩu phải có ít nhất 8 ký tự, chứa ít nhất 1 chữ hoa và 1 ký tự đặc biệt như @ ! ?';
-        if (pw.length < 8 || !/[A-Z]/.test(pw) || !/[@!?]/.test(pw)) {
+        if (pw.length < 4|| !/[A-Z]/.test(pw) || !/[@!?]/.test(pw)) {
           e.preventDefault();
           const err = document.getElementById('pw-error');
           if (err) { err.textContent = msg; err.style.display = 'block'; }
