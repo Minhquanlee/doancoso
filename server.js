@@ -1097,10 +1097,117 @@ app.get('/admin/sales', requireAdmin, (req,res)=>{
     let totalRevenue = 0;
     if (formatted && formatted.length) totalRevenue = formatted.reduce((s,r)=>s + (r.revenue||0), 0);
 
-    res.render('admin/sales', { rows: formatted, period, totalRevenue, activeAdmin: 'sales' });
+    // compute per-day revenue history within the same window
+    const dayRows = db.prepare(`
+      SELECT date(o.created_at) AS day, COUNT(*) as orders_count, SUM(o.total) AS revenue
+      FROM orders o
+      WHERE o.status != 'cancelled' AND datetime(o.created_at) >= datetime(?)
+      GROUP BY day
+      ORDER BY day DESC
+    `).all(sinceIso);
+    const dailyHistory = (dayRows || []).map(r=>({ day: r.day, orders: r.orders_count || 0, revenue: r.revenue || 0 }));
+
+    // prepare chart data (days ascending)
+    const chartDays = (dailyHistory || []).slice().reverse().map(d=>d.day);
+    const chartRevenue = (dailyHistory || []).slice().reverse().map(d=>d.revenue || 0);
+
+    res.render('admin/sales', { rows: formatted, period, totalRevenue, dailyHistory, chartDays, chartRevenue, activeAdmin: 'sales' });
   } catch (e) {
     console.error('Sales report error', e && e.message);
     res.status(500).send('Server error generating sales report');
+  }
+});
+
+// Export sales CSV for selected period (period=day|week|month)
+app.get('/admin/sales/export', requireAdmin, (req,res)=>{
+  try {
+    const period = (req.query.period || 'month');
+    const now = new Date();
+    let since = new Date(now);
+    if (period === 'day') since.setDate(now.getDate() - 1);
+    else if (period === 'week') since.setDate(now.getDate() - 7);
+    else since.setDate(now.getDate() - 30);
+    const sinceIso = since.toISOString();
+    // export per-day summary
+    const rows = db.prepare(`
+      SELECT date(o.created_at) AS day, COUNT(*) as orders_count, SUM(o.total) AS revenue
+      FROM orders o
+      WHERE o.status != 'cancelled' AND datetime(o.created_at) >= datetime(?)
+      GROUP BY day
+      ORDER BY day DESC
+    `).all(sinceIso);
+    const lines = ['day,orders,revenue'];
+    for (const r of rows) lines.push([r.day, r.orders_count||0, r.revenue||0].join(','));
+    const csv = lines.join('\n');
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-${period}.csv"`);
+    return res.send(csv);
+  } catch (e) {
+    console.error('Sales export error', e && e.message);
+    res.status(500).send('Export error');
+  }
+});
+
+// Admin: view sales details for a single day (YYYY-MM-DD)
+app.get('/admin/sales/day/:day', requireAdmin, (req,res)=>{
+  try {
+    const day = req.params.day; // expect format YYYY-MM-DD
+    // per-page pagination for orders
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = 20;
+    const offset = (page - 1) * pageSize;
+
+    // per-product aggregation for that day
+    console.log('Sales day: running prodRows query for', day);
+    const prodRows = db.prepare(`
+      SELECT oi.product_id, p.title, p.image, SUM(oi.quantity) AS total_qty, SUM(oi.quantity * oi.price) AS revenue
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      LEFT JOIN products p ON p.id = oi.product_id
+      WHERE o.status != 'cancelled' AND date(o.created_at) = date(?)
+      GROUP BY oi.product_id
+      ORDER BY total_qty DESC
+    `).all(day);
+    const products = (prodRows || []).map(r=>({
+      product_id: r.product_id,
+      title: r.title,
+      safeImage: isValidImagePath(r.image) ? r.image : choosePlaceholder(r.title),
+      total_qty: r.total_qty || 0,
+      revenue: r.revenue || 0
+    }));
+
+    // list orders for that day with pagination
+    console.log('Sales day: fetching paginated orders for', day, 'offset', offset);
+    const orders = db.prepare("SELECT * FROM orders WHERE status != 'cancelled' AND date(created_at) = date(?) ORDER BY created_at DESC LIMIT ? OFFSET ?").all(day, pageSize, offset);
+    const countRow = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND date(created_at) = date(?)").get(day);
+    const totalOrders = countRow ? (countRow.cnt || 0) : 0;
+    const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+
+    // compute totals
+    const totalRevenue = products.reduce((s,p)=>s + (p.revenue||0), 0);
+
+    res.render('admin/sales-day', { day, products, orders, totalRevenue, totalOrders, page, pageSize, totalPages, period: req.query.period || 'day', activeAdmin: 'sales' });
+  } catch (e) {
+    console.error('Sales day detail error', e && e.message);
+    if (e && e.stack) console.error(e.stack);
+    res.status(500).send('Server error');
+  }
+});
+
+// Export CSV for a single day (orders list)
+app.get('/admin/sales/day/:day/export', requireAdmin, (req,res)=>{
+  try {
+    const day = req.params.day;
+    const orders = db.prepare("SELECT * FROM orders WHERE status != 'cancelled' AND date(created_at) = date(?) ORDER BY created_at DESC").all(day);
+    const lines = ['order_id,created_at,user_id,total,status,address_id'];
+    for (const o of orders) lines.push([o.id, o.created_at, o.user_id || '', o.total || 0, o.status || '', o.address_id || ''].join(','));
+    const csv = lines.join('\n');
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-${day}.csv"`);
+    return res.send(csv);
+  } catch (e) {
+    console.error('Sales day export error', e && e.message);
+    res.status(500).send('Export error');
   }
 });
 

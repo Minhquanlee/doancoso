@@ -11,27 +11,82 @@
     </style>
     <h2>Báo cáo doanh thu & bán chạy</h2>
     <p>Danh sách sản phẩm được mua nhiều nhất (loại trừ các đơn hàng đã bị huỷ)</p>
+    <div style="margin-top:10px;margin-bottom:12px;display:flex;gap:8px;align-items:center">
+      <div style="background:#fff;border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(2,6,23,0.04);display:flex;gap:6px">
+        <button id="tab-bests" class="link-btn active-period" style="border:none;background:transparent;cursor:pointer;padding:6px 10px">Bán chạy</button>
+        <button id="tab-history" class="link-btn" style="border:none;background:transparent;cursor:pointer;padding:6px 10px">Lịch sử</button>
+      </div>
+    </div>
     <div style="margin-top:8px;margin-bottom:12px;display:flex;gap:8px;align-items:center">
   <a href="/admin/sales?period=day" class="link-btn <%= period==='day' ? 'active-period' : '' %>">Theo ngày</a>
   <a href="/admin/sales?period=week" class="link-btn <%= period==='week' ? 'active-period' : '' %>">Theo tuần</a>
   <a href="/admin/sales?period=month" class="link-btn <%= (typeof period==='undefined' || period==='month') ? 'active-period' : '' %>">Theo tháng</a>
       <div style="margin-left:16px;color:var(--muted)">Tổng doanh thu: <strong style="color:var(--accent)"><%= (totalRevenue||0).toLocaleString() %> VND</strong></div>
+      <a href="/admin/sales/export?period=<%= period %>" class="link-btn" style="margin-left:12px">Export CSV</a>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px">
+    <div class="sales-grid" style="margin-top:12px">
+      <div id="sales-history" class="sales-left">
+        <h4 style="margin-bottom:8px">Lịch sử doanh thu theo ngày</h4>
+        <% if (!dailyHistory || dailyHistory.length === 0) { %>
+          <div class="card" style="padding:12px">Chưa có dữ liệu doanh thu theo ngày.</div>
+        <% } else { %>
+          <div class="day-list">
+            <% dailyHistory.forEach(d=>{ %>
+              <a href="/admin/sales/day/<%= d.day %>?period=<%= period %>" style="text-decoration:none;color:inherit">
+                <div class="day-card">
+                  <div class="day-left"><%= d.day %></div>
+                  <div class="day-right"><div class="day-meta"><%= d.orders %> đơn</div><div class="revenue"><%= (d.revenue||0).toLocaleString() %> VND</div></div>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+
+      <div id="sales-products" class="sales-right">
       <% if (!rows || rows.length === 0) { %>
         <div class="card" style="padding:18px">Chưa có dữ liệu bán hàng.</div>
       <% } else { %>
         <% rows.forEach(r=>{ %>
-          <div class="card" style="width:260px">
-            <div class="image-wrap" style="height:150px"><img loading="lazy" src="<%= r.safeImage %>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:6px"/></div>
-            <div style="padding:10px">
-              <strong style="display:block;margin-bottom:6px"><%= r.title %></strong>
+          <div class="card">
+            <div class="image-wrap"><img loading="lazy" src="<%= r.safeImage %>" alt=""/></div>
+            <div class="info">
+              <h3 class="card-title"><%= r.title %></h3>
               <div class="text-muted" style="margin-bottom:6px"><%= r.total_qty %> lượt mua</div>
               <div style="font-weight:600;color:var(--accent);">Doanh thu: <%= (r.revenue || 0).toLocaleString() %> VND</div>
             </div>
           </div>
         <% }) %>
       <% } %>
+      </div>
     </div>
+    </div>
+    <!-- Biểu đồ đã bị gỡ theo yêu cầu -->
+    <script>
+      // tabs: toggle between best-sellers and history
+      (function(){
+        const tabB = document.getElementById('tab-bests');
+        const tabH = document.getElementById('tab-history');
+        const historyEl = document.getElementById('sales-history');
+        const productsEl = document.getElementById('sales-products');
+        if (!tabB || !tabH || !historyEl || !productsEl) return;
+        function showHistory(){
+          historyEl.style.display = '';
+          productsEl.style.display = 'block';
+          tabH.classList.add('active-period');
+          tabB.classList.remove('active-period');
+        }
+        function showBests(){
+          historyEl.style.display = 'none';
+          productsEl.style.display = 'flex';
+          tabB.classList.add('active-period');
+          tabH.classList.remove('active-period');
+        }
+        // initial: show both (keep original behavior) — but if screen narrow, default to bests
+        if (window.innerWidth < 780) showBests();
+        tabB.addEventListener('click', showBests);
+        tabH.addEventListener('click', showHistory);
+      })();
+    </script>
   </div>
 </div>

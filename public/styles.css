@@ -399,6 +399,32 @@ button[disabled]{opacity:0.6}
 .ship-phone{margin-top:6px}
 .ship-street{margin-top:6px}
 
+/* Sales report layout fixes */
+.sales-grid{display:flex;gap:24px;align-items:flex-start}
+.sales-left{flex:0 0 40%;min-width:320px}
+.sales-right{flex:1 0 60%;min-width:420px;display:flex;flex-wrap:wrap;gap:16px}
+
+/* Day list and day card */
+.day-list{display:flex;flex-direction:column;gap:12px}
+.day-card{display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:10px;background:#fff;border:1px solid #f3f4f6;box-shadow:0 8px 20px rgba(2,6,23,0.04)}
+.day-card .day-left{font-weight:700}
+.day-card .day-right{text-align:right;color:var(--muted)}
+.day-card .day-right .revenue{display:block;font-weight:700;color:var(--accent)}
+.day-card .day-meta{font-size:13px;color:var(--muted)}
+
+/* Ensure fixed spacing between rows and items */
+.day-list > * {margin:0}
+
+/* Sales product card tweaks specific to sales page */
+.sales-right .card{width:260px;display:flex;flex-direction:column}
+.sales-right .image-wrap{height:160px;border-radius:10px;overflow:hidden}
+.sales-right .image-wrap img{width:100%;height:100%;object-fit:cover}
+.sales-right .info{padding:12px}
+.sales-right .info h3{font-size:15px}
+
+/* make sure admin sidebar and main remain aligned */
+.admin-wrap{align-items:flex-start}
+
 /* subtle page layout tweak: add more breathing room around card */
 main{padding:36px;max-width:1200px;margin:0 auto}
 

@@ -1,14 +1,14 @@
-ReferenceError: C:\Users\minhq\OneDrive\Desktop\doancosoweb\views\admin\index.ejs:7
-    5|       <span class="label">Sản phẩm</span>
-    6|     </a>
- >> 7|     <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>">
-    8|       <span class="icon">✨</span>
-    9|       <span class="label">Tạo sản phẩm mới</span>
-    10|     </a>
+ReferenceError: C:\Users\minhq\OneDrive\Desktop\doancosoweb\views\admin\sales.ejs:23
+    21|       <div style="flex:1;min-width:360px">
+    22|         <h4 style="margin-bottom:8px">Lịch sử doanh thu theo ngày</h4>
+ >> 23|         <% if (!dailyHistory || dailyHistory.length === 0) { %>
+    24|           <div class="card" style="padding:12px">Chưa có dữ liệu doanh thu theo ngày.</div>
+    25|         <% } else { %>
+    26|           <div style="display:flex;flex-direction:column;gap:8px">
 
-activeAdmin is not defined
-    at eval ("C:\\Users\\minhq\\OneDrive\\Desktop\\doancosoweb\\views\\admin\\index.ejs":15:27)
-    at index (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\ejs\lib\ejs.js:703:17)
+dailyHistory is not defined
+    at eval ("C:\\Users\\minhq\\OneDrive\\Desktop\\doancosoweb\\views\\admin\\sales.ejs":24:8)
+    at sales (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\ejs\lib\ejs.js:703:17)
     at tryHandleCache (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\ejs\lib\ejs.js:274:36)
     at exports.renderFile [as engine] (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\ejs\lib\ejs.js:491:10)
     at View.render (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\express\lib\view.js:135:8)
@@ -16,4 +16,4 @@ activeAdmin is not defined
     at Function.render (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\express\lib\application.js:609:3)
     at ServerResponse.render (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\express\lib\response.js:1049:7)
     at res.render (C:\Users\minhq\OneDrive\Desktop\doancosoweb\node_modules\express-ejs-layouts\lib\express-layouts.js:77:18)
-    at C:\Users\minhq\OneDrive\Desktop\doancosoweb\server.js:960:7
+    at C:\Users\minhq\OneDrive\Desktop\doancosoweb\server.js:1100:9
