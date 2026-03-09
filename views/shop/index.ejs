@@ -21,11 +21,12 @@
         <div class="meta">
           <span class="price"><%= (p.price).toLocaleString() %> VND</span>
           <span class="badge"><%= p.category %></span>
+          <span class="badge"><%= p.stock > 0 ? ('Con ' + p.stock) : 'Het hang' %></span>
         </div>
         <form method="post" action="/cart/add" class="add-form">
           <input type="hidden" name="productId" value="<%= p.id %>" />
-          <input type="number" name="qty" value="1" min="1" />
-          <button type="submit" class="btn">Thêm vào giỏ</button>
+          <input type="number" name="qty" value="1" min="1" max="<%= p.stock %>" <%= p.stock <= 0 ? 'disabled' : '' %> />
+          <button type="submit" class="btn" <%= p.stock <= 0 ? 'disabled' : '' %>><%= p.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng' %></button>
         </form>
       </div>
     </div>

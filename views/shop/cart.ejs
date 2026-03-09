@@ -1,4 +1,10 @@
 <h2>Giỏ hàng</h2>
+<% if (typeof error !== 'undefined' && error) { %>
+  <div style="margin-bottom:12px;padding:10px 12px;border:1px solid #f1c40f;background:#fff8db;border-radius:8px"><%= error %></div>
+<% } %>
+<% if (typeof warning !== 'undefined' && warning) { %>
+  <div style="margin-bottom:12px;padding:10px 12px;border:1px solid #f39c12;background:#fff4e5;border-radius:8px"><%= warning %></div>
+<% } %>
 <% if (items.length === 0) { %>
   <p>Giỏ hàng trống</p>
 <% } else { %>
@@ -8,9 +14,9 @@
     <tbody>
     <% items.forEach(function(it, idx){ %>
       <tr>
-        <td style="display:flex;gap:10px;align-items:center"><img loading="lazy" class="cart-thumb" src="<%= it.product.safeImage || it.product.image %>" alt=""/><span><%= it.product.title %></span></td>
+        <td style="display:flex;gap:10px;align-items:center"><img loading="lazy" class="cart-thumb" src="<%= it.product.safeImage || it.product.image %>" alt=""/><span><%= it.product.title %><div style="font-size:12px;color:#666">Tồn kho: <strong><%= it.product.stock %></strong></div></span></td>
         <td>
-          <input type="number" name="qty[]" value="<%= it.quantity %>" min="0" />
+          <input type="number" name="qty[]" value="<%= it.quantity %>" min="0" max="<%= it.product.stock %>" />
           <input type="hidden" name="productId[]" value="<%= it.product.id %>" />
           <% if (it.option) { %>
             <div>Size: <strong><%= it.option %></strong></div>

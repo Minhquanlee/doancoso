@@ -351,6 +351,139 @@ function saveCartForUser(userId, cartObj){
   } catch(e){ console.error('saveCartForUser error', e && e.message); }
 }
 
+function parseCartKey(key) {
+  const parts = String(key || '').split('::');
+  return { productId: parts[0], option: parts[1] || null };
+}
+
+function getInventoryMessage(adjustments) {
+  if (!adjustments || !adjustments.length) return null;
+  const first = adjustments[0];
+  if (first.reason === 'missing') return `Sản phẩm ${first.title || ''} không còn tồn tại và đã được xóa khỏi giỏ.`.trim();
+  if (first.allowed === 0) return `${first.title} đã hết hàng.`;
+  return `${first.title} chỉ còn ${first.allowed} sản phẩm trong kho.`;
+}
+
+function normalizeCartWithInventory(cartObj) {
+  const sourceCart = cartObj || {};
+  const normalized = {};
+  const adjustments = [];
+  const remainingByProduct = new Map();
+  const productCache = new Map();
+
+  for (const key of Object.keys(sourceCart)) {
+    const requestedQty = parseInt(sourceCart[key], 10) || 0;
+    if (requestedQty <= 0) continue;
+
+    const { productId } = parseCartKey(key);
+    if (!productId) continue;
+
+    let product = productCache.get(productId);
+    if (!product) {
+      product = db.prepare('SELECT id, title, stock FROM products WHERE id = ?').get(productId) || null;
+      productCache.set(productId, product);
+    }
+
+    if (!product) {
+      adjustments.push({ key, reason: 'missing', title: 'Sản phẩm' });
+      continue;
+    }
+
+    const productStock = Math.max(0, parseInt(product.stock, 10) || 0);
+    const remaining = remainingByProduct.has(productId) ? remainingByProduct.get(productId) : productStock;
+    if (remaining <= 0) {
+      adjustments.push({ key, reason: 'clamped', title: product.title, requested: requestedQty, allowed: 0 });
+      continue;
+    }
+
+    const allowedQty = Math.min(requestedQty, remaining);
+    normalized[key] = allowedQty;
+    remainingByProduct.set(productId, remaining - allowedQty);
+
+    if (allowedQty < requestedQty) {
+      adjustments.push({ key, reason: 'clamped', title: product.title, requested: requestedQty, allowed: allowedQty });
+    }
+  }
+
+  return { cart: normalized, adjustments };
+}
+
+function syncCartToSession(req, cartObj) {
+  req.session.cart = cartObj || {};
+  try {
+    if (req.session.user && req.session.user.id) saveCartForUser(req.session.user.id, req.session.cart);
+  } catch (e) {
+    console.error('cart sync error', e && e.message);
+  }
+}
+
+function loadCartItems(cartObj) {
+  const cart = cartObj || {};
+  const items = [];
+  let total = 0;
+
+  for (const key of Object.keys(cart)) {
+    const quantity = parseInt(cart[key], 10) || 0;
+    if (quantity <= 0) continue;
+
+    const { productId, option } = parseCartKey(key);
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
+    if (!product) continue;
+
+    product.safeImage = isValidImagePath(product.image) ? product.image : choosePlaceholder(product.title);
+    items.push({ key, product, quantity, option });
+    total += product.price * quantity;
+  }
+
+  return { items, total };
+}
+
+function reserveStockForItems(items) {
+  const tx = db.transaction((orderItems) => {
+    for (const item of orderItems) {
+      const current = db.prepare('SELECT stock FROM products WHERE id = ?').get(item.product.id);
+      const availableStock = Math.max(0, parseInt(current && current.stock, 10) || 0);
+      if (availableStock < item.quantity) {
+        const err = new Error(`${item.product.title} chỉ còn ${availableStock} sản phẩm trong kho.`);
+        err.code = 'INSUFFICIENT_STOCK';
+        throw err;
+      }
+    }
+
+    for (const item of orderItems) {
+      db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?').run(item.quantity, item.product.id);
+    }
+  });
+
+  tx(items);
+}
+
+function restoreStockForOrder(orderId) {
+  const tx = db.transaction((targetOrderId) => {
+    const items = db.prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?').all(targetOrderId);
+    for (const item of items) {
+      db.prepare('UPDATE products SET stock = stock + ? WHERE id = ?').run(item.quantity, item.product_id);
+    }
+  });
+
+  tx(orderId);
+}
+
+function createPaidOrder(userId, items, total, addressId) {
+  const tx = db.transaction((targetUserId, orderItems, orderTotal, targetAddressId) => {
+    reserveStockForItems(orderItems);
+    const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(targetUserId, orderTotal, 'paid', targetAddressId || null);
+    const orderId = info.lastInsertRowid;
+    const insertItem = db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)');
+    for (const item of orderItems) {
+      insertItem.run(orderId, item.product.id, item.quantity, item.product.price, item.option || null);
+    }
+    return orderId;
+  });
+
+  return tx(userId, items, total, addressId);
+}
+
 // routes
 app.get('/', (req,res)=>{
   const category = req.query.category;
@@ -420,7 +553,7 @@ app.get('/product/:id', (req,res)=>{
   } catch(e){ relatedProductsData = []; }
   // include current product as first element for cyclic navigation convenience
   const relatedProducts = [ { id: product.id, title: product.title, image: product.safeImage } ].concat(relatedProductsData);
-  res.render('shop/product', { product, relatedProducts });
+  res.render('shop/product', { product, relatedProducts, error: req.query.error || null });
 });
 
 // JSON endpoint for product details (used by AJAX on listing page)
@@ -490,9 +623,10 @@ app.post('/login',(req,res)=>{
         if (!qty) continue;
         merged[k] = (parseInt(merged[k]) || 0) + qty;
       }
+      const normalizedMerge = normalizeCartWithInventory(merged).cart;
       // save merged cart and attach to session
-      saveCartForUser(user.id, merged);
-      req.session.cart = merged;
+      saveCartForUser(user.id, normalizedMerge);
+      req.session.cart = normalizedMerge;
     } catch(e){ console.error('cart merge error', e && e.message); }
     res.redirect('/');
   });
@@ -613,26 +747,29 @@ app.post('/cart/add', (req,res)=>{
   req.session.cart = req.session.cart || {};
   // store as compound key when option provided: "<productId>::<option>"
   const key = option ? `${productId}::${option}` : `${productId}`;
-  req.session.cart[key] = (req.session.cart[key] || 0) + (parseInt(qty)||1);
+  const requestedQty = Math.max(1, parseInt(qty, 10) || 1);
+  const currentCart = req.session.cart || {};
+  const otherQty = Object.keys(currentCart).reduce((sum, cartKey) => {
+    const parsed = parseCartKey(cartKey);
+    if (parsed.productId !== String(productId) || cartKey === key) return sum;
+    return sum + (parseInt(currentCart[cartKey], 10) || 0);
+  }, 0);
+  const currentKeyQty = parseInt(currentCart[key], 10) || 0;
+  const availableForKey = Math.max(0, (parseInt(product.stock, 10) || 0) - otherQty);
+  const nextQty = Math.min(currentKeyQty + requestedQty, availableForKey);
+  if (nextQty <= 0) return res.redirect('/cart?error=' + encodeURIComponent(`${product.title} đã hết hàng.`));
+  req.session.cart[key] = nextQty;
+  syncCartToSession(req, req.session.cart);
+  if (nextQty < currentKeyQty + requestedQty) {
+    return res.redirect('/cart?error=' + encodeURIComponent(`${product.title} chỉ còn ${availableForKey} sản phẩm trong kho.`));
+  }
   res.redirect('/cart');
 });
 
 app.get('/cart', (req,res)=>{
-  const cart = req.session.cart || {};
-  const items = [];
-  let total = 0;
-  for (const pid in cart) {
-    // support compound keys: id::option
-    const parts = pid.split('::');
-    const realId = parts[0];
-    const option = parts[1] || null;
-    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(realId);
-    if (!p) continue;
-    const q = cart[pid];
-    p.safeImage = isValidImagePath(p.image) ? p.image : choosePlaceholder(p.title);
-    items.push({ product: p, quantity: q, option });
-    total += p.price * q;
-  }
+  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
+  syncCartToSession(req, normalizedCart.cart);
+  const { items, total } = loadCartItems(normalizedCart.cart);
   // also fetch recent orders for logged-in user to show status updates
   let recentOrders = [];
   try {
@@ -644,7 +781,7 @@ app.get('/cart', (req,res)=>{
       });
     }
   } catch(e){ recentOrders = []; }
-  res.render('shop/cart',{ items, total, recentOrders });
+  res.render('shop/cart',{ items, total, recentOrders, error: req.query.error || null, warning: getInventoryMessage(normalizedCart.adjustments) });
 });
 
 app.post('/cart/update', (req,res)=>{
@@ -664,14 +801,19 @@ app.post('/cart/update', (req,res)=>{
       const key = opt ? `${pid}::${opt}` : `${pid}`;
       newCart[key] = (newCart[key] || 0) + q;
     }
-    req.session.cart = newCart;
-    return res.redirect('/cart');
+    const normalized = normalizeCartWithInventory(newCart);
+    syncCartToSession(req, normalized.cart);
+    const message = getInventoryMessage(normalized.adjustments);
+    return res.redirect('/cart' + (message ? ('?error=' + encodeURIComponent(message)) : ''));
   }
   // single update
   if (!productId) return res.redirect('/cart');
   const q = parseInt(qty)||0;
   if (q <= 0) delete req.session.cart[productId]; else req.session.cart[productId] = q;
-  res.redirect('/cart');
+  const normalized = normalizeCartWithInventory(req.session.cart);
+  syncCartToSession(req, normalized.cart);
+  const message = getInventoryMessage(normalized.adjustments);
+  res.redirect('/cart' + (message ? ('?error=' + encodeURIComponent(message)) : ''));
 });
 
 // buy-now: create a single order immediately for this product (with option)
@@ -682,23 +824,33 @@ app.post('/buy-now', (req,res)=>{
   if (!p) return res.redirect('/');
   const q = parseInt(qty)||1;
   const total = p.price * q;
+  const availableStock = Math.max(0, parseInt(p.stock, 10) || 0);
+  if (q > availableStock) {
+    return res.redirect('/product/' + p.id + '?error=' + encodeURIComponent(`${p.title} chỉ còn ${availableStock} sản phẩm trong kho.`));
+  }
   // if user has a default address, create order immediately with that address
   const defaultAddr = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
   if (defaultAddr) {
-    const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(req.session.user.id,total,'paid', defaultAddr.id);
-    const orderId = info.lastInsertRowid;
-    db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)').run(orderId,p.id,q,p.price, option||null);
-    // clear session cart and persisted cart for this user
-    req.session.cart = {};
-    try { if (req.session.user && req.session.user.id) saveCartForUser(req.session.user.id, {}); } catch(e){}
-    return res.render('shop/checkout-success', { orderId, total });
+    try {
+      const orderId = createPaidOrder(req.session.user.id, [{ product: p, quantity: q, option: option || null }], total, defaultAddr.id);
+      syncCartToSession(req, {});
+      return res.render('shop/checkout-success', { orderId, total });
+    } catch (e) {
+      if (e && e.code === 'INSUFFICIENT_STOCK') {
+        return res.redirect('/product/' + p.id + '?error=' + encodeURIComponent(e.message));
+      }
+      throw e;
+    }
   }
 
   // otherwise add to cart and redirect to checkout so user can fill address
   const key = option ? `${productId}::${option}` : `${productId}`;
   req.session.cart = req.session.cart || {};
   req.session.cart[key] = (req.session.cart[key] || 0) + q;
-  return res.redirect('/checkout');
+  const normalized = normalizeCartWithInventory(req.session.cart);
+  syncCartToSession(req, normalized.cart);
+  const message = getInventoryMessage(normalized.adjustments);
+  return res.redirect('/checkout' + (message ? ('?error=' + encodeURIComponent(message)) : ''));
 });
 
 app.post('/cart/remove', (req,res)=>{
@@ -712,30 +864,19 @@ app.post('/cart/remove', (req,res)=>{
       if (k.split('::')[0] === String(productId)) delete req.session.cart[k];
     }
   }
+  syncCartToSession(req, req.session.cart);
   res.redirect('/cart');
 });
 
 app.get('/checkout', (req,res)=>{
   if (!req.session.user) return res.redirect('/login');
-  const cart = req.session.cart || {};
-  const items = [];
-  let total = 0;
-  for (const pid in cart) {
-    // support compound keys like '123::M'
-    const parts = pid.split('::');
-    const realId = parts[0];
-    const option = parts[1] || null;
-    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(realId);
-    if (!p) continue;
-    const q = cart[pid];
-    p.safeImage = (p.image && require('fs').existsSync(require('path').join(__dirname, 'public', p.image.replace(/^\//, '')))) ? p.image : '/images/default.svg';
-    items.push({ product: p, quantity: q, option });
-    total += p.price * q;
-  }
+  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
+  syncCartToSession(req, normalizedCart.cart);
+  const { items, total } = loadCartItems(normalizedCart.cart);
   if (items.length === 0) return res.redirect('/cart');
   // try to fetch user's default address (if any) to prefill/skip form
   const defaultAddress = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
-  res.render('shop/checkout',{ items, total, defaultAddress, stripePublishable: process.env.STRIPE_PUBLISHABLE || null });
+  res.render('shop/checkout',{ items, total, defaultAddress, stripePublishable: process.env.STRIPE_PUBLISHABLE || null, error: req.query.error || getInventoryMessage(normalizedCart.adjustments) });
 });
 
 app.get('/orders', (req,res)=>{
@@ -806,26 +947,21 @@ app.post('/order/:id/cancel', requireLogin, (req,res)=>{
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(id, req.session.user.id);
   if (!order) return res.status(404).send('Not found');
   if (order.status === 'shipped' || order.status === 'cancelled') return res.redirect('/order-status');
-  db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('cancelled', id);
+  const tx = db.transaction((orderId) => {
+    restoreStockForOrder(orderId);
+    db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('cancelled', orderId);
+  });
+  tx(id);
   res.redirect('/order-status');
 });
 
 // checkout (mock)
 app.post('/checkout',(req,res)=>{
   if (!req.session.user) return res.redirect('/login');
-  const cart = req.session.cart || {};
-  let total = 0;
-  const items = [];
-  for (const key in cart) {
-    const parts = String(key).split('::');
-    const realId = parts[0];
-    const option = parts[1] || null;
-    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(realId);
-    if (!p) continue;
-    const q = cart[key];
-    total += p.price * q;
-    items.push({ product: p, quantity: q, option });
-  }
+  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
+  syncCartToSession(req, normalizedCart.cart);
+  const { items, total } = loadCartItems(normalizedCart.cart);
+  if (!items.length) return res.redirect('/cart?error=' + encodeURIComponent('Gio hang trong.'));
   // capture shipping info from the form and save as an address, then attach to order
   const { recipient, phone, street, city, postcode } = req.body || {};
   let addrId = null;
@@ -839,14 +975,16 @@ app.post('/checkout',(req,res)=>{
     }
   } catch(e) { console.error('Address insert error', e.message); }
 
-  const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(req.session.user.id,total,'paid', addrId);
-  const orderId = info.lastInsertRowid;
-  const insertItem = db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)');
-  for (const it of items) {
-    insertItem.run(orderId, it.product.id, it.quantity, it.product.price, it.option || null);
+  let orderId;
+  try {
+    orderId = createPaidOrder(req.session.user.id, items, total, addrId);
+  } catch (e) {
+    if (e && e.code === 'INSUFFICIENT_STOCK') {
+      return res.redirect('/checkout?error=' + encodeURIComponent(e.message));
+    }
+    throw e;
   }
-  req.session.cart = {};
-  try { if (req.session.user && req.session.user.id) saveCartForUser(req.session.user.id, {}); } catch(e){}
+  syncCartToSession(req, {});
   // send email to user if possible
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
   const orderHtml = `<p>Đơn hàng #${orderId} — Tổng: ${total.toLocaleString()} VND</p>`;
@@ -869,12 +1007,15 @@ app.post('/create-stripe-session', async (req,res)=>{
       req.session.checkoutAddress = { recipient, phone, street, city, postcode: postcode || null };
     }
   } catch(e) { /* ignore */ }
-  const cart = req.session.cart || {};
+  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
+  syncCartToSession(req, normalizedCart.cart);
+  const cart = normalizedCart.cart;
   const line_items = [];
-  for (const pid in cart) {
-    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(pid);
+  for (const key of Object.keys(cart)) {
+    const parsed = parseCartKey(key);
+    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(parsed.productId);
     if (!p) continue;
-    const q = cart[pid];
+    const q = cart[key];
     // naive currency conversion: assume VND, convert to USD cents by /1000 then *100
     const unit_amount = Math.max(100, Math.round((p.price/1000)) * 100);
     line_items.push({
@@ -910,19 +1051,10 @@ app.get('/stripe-success', async (req,res)=>{
   try {
     const stripeSession = sessionId ? await stripeLib.checkout.sessions.retrieve(sessionId) : null;
     // if payment succeeded, create order from cart
-    const cart = req.session.cart || {};
-    let total = 0;
-    const items = [];
-    for (const key in cart) {
-      const parts = String(key).split('::');
-      const realId = parts[0];
-      const option = parts[1] || null;
-      const p = db.prepare('SELECT * FROM products WHERE id = ?').get(realId);
-      if (!p) continue;
-      const q = cart[key];
-      total += p.price * q;
-      items.push({ product: p, quantity: q, option });
-    }
+    const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
+    syncCartToSession(req, normalizedCart.cart);
+    const { items, total } = loadCartItems(normalizedCart.cart);
+    if (!items.length) return res.redirect('/cart');
     // if we saved a checkoutAddress in session (from the checkout form), persist it and attach to order
     let addrId = null;
     try {
@@ -938,12 +1070,8 @@ app.get('/stripe-success', async (req,res)=>{
       }
     } catch(e) { console.error('Stripe address save error', e.message); }
 
-    const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(req.session.user.id,total,'paid', addrId);
-    const orderId = info.lastInsertRowid;
-  const insertItem = db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)');
-  for (const it of items) insertItem.run(orderId, it.product.id, it.quantity, it.product.price, it.option || null);
-    req.session.cart = {};
-    try { if (req.session.user && req.session.user.id) saveCartForUser(req.session.user.id, {}); } catch(e){}
+    const orderId = createPaidOrder(req.session.user.id, items, total, addrId);
+    syncCartToSession(req, {});
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
     const orderHtml = `<p>Đơn hàng #${orderId} — Tổng: ${total.toLocaleString()} VND</p>`;
     if (mailer && user && user.email) {
@@ -976,6 +1104,14 @@ app.post('/admin/orders/:id/status', requireAdmin, (req,res)=>{
   if (order && order.status === 'cancelled') {
     return res.redirect('/admin/orders');
   }
+  if (order && status === 'cancelled') {
+    const tx = db.transaction((orderId) => {
+      restoreStockForOrder(orderId);
+      db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, orderId);
+    });
+    tx(id);
+    return res.redirect('/admin/orders');
+  }
   db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, id);
   res.redirect('/admin/orders');
 });
@@ -1002,6 +1138,7 @@ app.post('/admin/orders/:id/delete', requireAdmin, (req,res)=>{
   if (order && order.status === 'cancelled') {
     return res.redirect('/admin/orders');
   }
+  if (order) restoreStockForOrder(id);
   db.prepare('DELETE FROM order_items WHERE order_id = ?').run(id);
   db.prepare('DELETE FROM orders WHERE id = ?').run(id);
   res.redirect('/admin/orders');
@@ -1026,6 +1163,14 @@ app.post('/admin/orders/:id/update', requireAdmin, (req,res)=>{
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
   if (order && order.status === 'cancelled') {
     // do not allow updating a cancelled order
+    return res.redirect('/admin/orders');
+  }
+  if (order && status === 'cancelled') {
+    const tx = db.transaction((orderId) => {
+      restoreStockForOrder(orderId);
+      db.prepare('UPDATE orders SET status = ?, address_id = ? WHERE id = ?').run(status || 'pending', address_id || null, orderId);
+    });
+    tx(id);
     return res.redirect('/admin/orders');
   }
   db.prepare('UPDATE orders SET status = ?, address_id = ? WHERE id = ?').run(status || 'pending', address_id || null, id);

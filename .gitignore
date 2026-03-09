@@ -1,0 +1,7 @@
+node_modules/
+data.sqlite
+sessions.sqlite
+last_error.log
+-
+.DS_Store
+Thumbs.db

@@ -48,7 +48,7 @@
                 <div class="account-list">
                     <a href="/account">Hồ sơ</a>
                     <a href="/account/password">Đổi mật khẩu</a>
-                    <form method="post" action="/logout" style="margin:0">
+                    <form method="post" action="/logout" data-confirm-logout="true" style="margin:0">
                       <button type="submit" class="link-btn" style="display:block;padding:8px 12px;border:none;background:transparent;text-align:left">Đăng xuất</button>
                     </form>
                   </div>
@@ -63,7 +63,7 @@
                   <a href="/admin/sales">Doanh thu</a>
                 </div>
               </div>
-              <form method="post" action="/logout" style="display:inline"><button type="submit" class="link-btn">Đăng xuất</button></form>
+              <form method="post" action="/logout" data-confirm-logout="true" style="display:inline"><button type="submit" class="link-btn">Đăng xuất</button></form>
             <% } %>
           <% } else { %>
             <a href="/login" class="link-btn" title="Đăng nhập">Đăng nhập</a>
@@ -113,7 +113,7 @@
           <% if (currentUser) { %>
             <a href="/account">Hồ sơ</a>
             <a href="/order-status">Đơn hàng</a>
-            <form method="post" action="/logout"><button type="submit" class="link-btn">Đăng xuất</button></form>
+            <form method="post" action="/logout" data-confirm-logout="true"><button type="submit" class="link-btn">Đăng xuất</button></form>
           <% } else { %>
             <a href="/login">Đăng nhập</a>
             <a href="/register">Đăng ký</a>
@@ -224,7 +224,69 @@
           });
         });
       }
-      document.addEventListener('DOMContentLoaded', function(){ setupPreview('images-input'); });
+      function bindLogoutConfirmation(){
+        document.querySelectorAll('form[data-confirm-logout="true"]').forEach(function(form){
+          if (form.dataset.logoutBound === 'true') return;
+          form.dataset.logoutBound = 'true';
+          form.addEventListener('submit', function(e){
+            const ok = window.confirm('Bạn có chắc chắn muốn đăng xuất không?');
+            if (!ok) e.preventDefault();
+          });
+        });
+      }
+
+      function getQuantityValidationMessage(input){
+        const rawMax = input.getAttribute('max');
+        const rawMin = input.getAttribute('min');
+        const max = rawMax === null ? null : parseInt(rawMax, 10);
+        const min = rawMin === null ? null : parseInt(rawMin, 10);
+        const value = parseInt(input.value || '0', 10);
+
+        if (input.validity.valueMissing) return 'Vui lòng nhập số lượng.';
+        if (input.validity.badInput) return 'Số lượng phải là số hợp lệ.';
+        if (min !== null && value < min) return `Số lượng phải lớn hơn hoặc bằng ${min}.`;
+        if (max !== null && value > max) {
+          if (max <= 0) return 'Sản phẩm này hiện đã hết hàng.';
+          return `Bạn đã nhập vượt quá số lượng tồn kho. Chỉ còn ${max} sản phẩm.`;
+        }
+        return '';
+      }
+
+      function ensureQuantityHint(input){
+        let hint = input.parentElement && input.parentElement.querySelector('.quantity-validation-hint');
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.className = 'quantity-validation-hint';
+          if (input.parentElement) input.parentElement.appendChild(hint);
+        }
+        return hint;
+      }
+
+      function updateQuantityValidationState(input){
+        const message = getQuantityValidationMessage(input);
+        input.setCustomValidity(message);
+        const hint = ensureQuantityHint(input);
+        if (hint) hint.textContent = message;
+        input.classList.toggle('is-invalid', !!message);
+      }
+
+      function bindQuantityValidation(){
+        document.querySelectorAll('input[type="number"][name="qty"], input[type="number"][name="qty[]"]').forEach(function(input){
+          if (input.dataset.qtyValidationBound === 'true') return;
+          input.dataset.qtyValidationBound = 'true';
+          ['input','change'].forEach(function(eventName){
+            input.addEventListener(eventName, function(){ updateQuantityValidationState(input); });
+          });
+          input.addEventListener('invalid', function(){ updateQuantityValidationState(input); });
+          updateQuantityValidationState(input);
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function(){
+        setupPreview('images-input');
+        bindLogoutConfirmation();
+        bindQuantityValidation();
+      });
       // account avatar dropdown: toggle on click, close when clicking outside
       (function(){
         function closeAllMenus(){

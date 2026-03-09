@@ -18,13 +18,22 @@
       </div>
     </div>
     <div class="details">
-      <h2><%= product.title %></h2>
-      <p><%= product.description %></p>
-      <p>Giá: <strong><%= product.price.toLocaleString() %> VND</strong></p>
+      <div class="product-copy">
+        <h2><%= product.title %></h2>
+        <p class="product-description"><%= product.description %></p>
+        <div class="product-price-row">Giá: <strong><%= product.price.toLocaleString() %> VND</strong></div>
+      </div>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="product-inline-alert"><%= error %></div>
+      <% } %>
+      <div class="product-stock-row">
+        <p class="product-stock">Tồn kho: <strong><%= product.stock %></strong></p>
+        <span class="stock-pill <%= product.stock > 10 ? 'stock-high' : (product.stock > 0 ? 'stock-medium' : 'stock-low') %>"><%= product.stock > 0 ? 'Còn hàng' : 'Hết hàng' %></span>
+      </div>
       <form method="post" action="/cart/add" class="buy-form">
         <input type="hidden" name="productId" value="<%= product.id %>" />
         <div class="field-row">
-          <label>Size:
+          <label class="product-form-field size-field"><span class="field-label">Size</span>
             <select name="option">
               <option value="">Chọn size</option>
               <option value="S">S</option>
@@ -33,13 +42,14 @@
               <option value="XL">XL</option>
             </select>
           </label>
-          <label>SL:
-            <input type="number" name="qty" value="1" min="1" />
+          <label class="product-form-field qty-field"><span class="field-label">Số lượng</span>
+            <input type="number" name="qty" value="1" min="1" max="<%= product.stock %>" <%= product.stock <= 0 ? 'disabled' : '' %> />
           </label>
         </div>
-        <div class="actions">
-          <button type="submit" class="btn secondary">Thêm vào giỏ</button>
-          <button type="submit" formaction="/buy-now" formmethod="post" class="btn primary-buy">Mua ngay</button>
+        <p class="product-form-help">Bạn có thể mua tối đa <strong><%= product.stock %></strong> sản phẩm ở lần đặt này.</p>
+        <div class="actions product-actions">
+          <button type="submit" class="btn secondary" <%= product.stock <= 0 ? 'disabled' : '' %>>Thêm vào giỏ</button>
+          <button type="submit" formaction="/buy-now" formmethod="post" class="btn primary-buy" <%= product.stock <= 0 ? 'disabled' : '' %>>Mua ngay</button>
         </div>
       </form>
     </div>
@@ -122,8 +132,17 @@
       document.querySelector('.details p').textContent = data.description || '';
       const priceEl = document.querySelector('.details p strong');
       if (priceEl) priceEl.textContent = (data.price || 0).toLocaleString() + ' VND';
+      const stockWrap = document.querySelector('.product-stock strong');
+      if (stockWrap) stockWrap.textContent = data.stock || 0;
       // update hidden productId
       const hid = document.querySelector('input[name="productId"]'); if (hid) hid.value = data.id;
+      const qtyInput = document.querySelector('input[name="qty"]');
+      if (qtyInput) {
+        qtyInput.max = data.stock || 0;
+        qtyInput.disabled = !data.stock;
+        if ((parseInt(qtyInput.value || '1', 10) || 1) > (data.stock || 0)) qtyInput.value = Math.max(1, data.stock || 1);
+      }
+      document.querySelectorAll('.actions button').forEach(function(btn){ btn.disabled = !(data.stock > 0); });
       // rebuild carousel slides and thumbs
       const imgs = (data.images && data.images.length) ? data.images : (data.image ? [data.image] : []);
       const track = document.getElementById('carousel-track');

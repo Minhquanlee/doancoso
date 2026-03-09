@@ -1,121 +1,185 @@
-<div class="account-profile">
-  <!-- left: main profile form -->
-  <div class="addresses-card">
-    <h3>Hồ Sơ Của Tôi</h3>
-    <p class="text-muted">Quản lý thông tin hồ sơ để bảo mật tài khoản</p>
+<div class="account-profile account-dashboard">
+  <% const email = user && user.email ? user.email : ''; %>
+  <% const uname = email.split('@')[0] || (user && user.name) || ''; %>
+  <% function maskEmail(e){ if(!e) return ''; const parts = e.split('@'); const name=parts[0]; const domain=parts[1]||''; if(name.length<=2) return name.replace(/./g,'*')+'@'+domain; return name[0] + '*'.repeat(Math.max(3,name.length-2)) + '@' + domain; } %>
+
+  <section class="account-main-card">
+    <div class="account-hero">
+      <div>
+        <p class="account-eyebrow">Tài khoản cá nhân</p>
+        <h2>Hồ sơ của tôi</h2>
+        <p class="account-subtitle">Quản lý thông tin cá nhân, cập nhật ảnh đại diện và sổ địa chỉ giao hàng trong cùng một nơi.</p>
+      </div>
+      <div class="account-hero-badge">
+        <span class="account-badge-label">Tài khoản</span>
+        <strong><%= uname %></strong>
+      </div>
+    </div>
 
     <% if (typeof error !== 'undefined' && error) { %>
-      <div class="small-card" style="background:#fff6f6;border:1px solid rgba(220,53,69,0.08);color:var(--danger);margin-bottom:12px;padding:10px 12px;border-radius:8px">
+      <div class="account-alert error-alert">
         <strong>Lỗi:</strong> <%= error %>
       </div>
     <% } %>
 
-    <form method="post" action="/account" class="profile-form" style="margin-top:12px">
-      <% const email = user && user.email ? user.email : ''; %>
-      <% const uname = email.split('@')[0] || (user && user.name) || ''; %>
-      <% function maskEmail(e){ if(!e) return ''; const parts = e.split('@'); const name=parts[0]; const domain=parts[1]||''; if(name.length<=2) return name.replace(/./g,'*')+'@'+domain; return name[0] + '*'.repeat(Math.max(3,name.length-2)) + '@' + domain; } %>
+    <div class="account-layout-grid">
+      <div class="account-content-column">
+        <div class="profile-section-card">
+          <div class="section-head">
+            <div>
+              <h3>Thông tin cá nhân</h3>
+              <p class="text-muted">Các thay đổi ở đây sẽ được dùng cho hồ sơ và đơn hàng của bạn.</p>
+            </div>
+          </div>
 
-      <label>Tên đăng nhập
-        <input type="text" name="username" value="<%= uname %>" readonly />
-        <div class="text-muted" style="font-size:13px;margin-top:6px">Tên Đăng nhập chỉ có thể thay đổi một lần.</div>
-      </label>
+          <form method="post" action="/account" class="profile-form profile-form-modern">
+            <div class="profile-grid">
+              <label class="profile-field">
+                <span class="profile-label">Tên đăng nhập</span>
+                <input type="text" name="username" value="<%= uname %>" readonly />
+                <span class="field-note">Tên đăng nhập chỉ có thể thay đổi một lần.</span>
+              </label>
 
-      <label>Tên
-        <input type="text" name="name" value="<%= user ? user.name : '' %>" required />
-      </label>
+              <label class="profile-field">
+                <span class="profile-label">Họ và tên</span>
+                <input type="text" name="name" value="<%= user ? user.name : '' %>" required />
+              </label>
 
-      <label>Email
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="email" value="<%= maskEmail(email) %>" readonly style="flex:1" />
-          <a href="#" class="link-btn">Thay Đổi</a>
-        </div>
-      </label>
+              <label class="profile-field field-span-2">
+                <span class="profile-label">Email</span>
+                <div class="profile-inline-input">
+                  <input type="email" value="<%= maskEmail(email) %>" readonly />
+                  <a href="#" class="link-btn">Thay đổi</a>
+                </div>
+              </label>
 
-      <label>Số điện thoại
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="tel" name="phone" value="<%= user ? user.phone : '' %>" />
-          <a href="#" class="link-btn">Thay Đổi</a>
-        </div>
-      </label>
+              <label class="profile-field">
+                <span class="profile-label">Số điện thoại</span>
+                <div class="profile-inline-input">
+                  <input type="tel" name="phone" value="<%= user ? user.phone : '' %>" />
+                  <a href="#" class="link-btn">Thay đổi</a>
+                </div>
+              </label>
 
-      <label>Giới tính
-        <div style="display:flex;gap:12px;align-items:center;margin-top:6px">
-          <label><input type="radio" name="gender" value="male" <%= (user && user.gender === 'male') ? 'checked' : '' %> > Nam</label>
-          <label><input type="radio" name="gender" value="female" <%= (user && user.gender === 'female') ? 'checked' : '' %> > Nữ</label>
-          <label><input type="radio" name="gender" value="other" <%= (user && user.gender === 'other') ? 'checked' : '' %> > Khác</label>
-        </div>
-      </label>
+              <label class="profile-field">
+                <span class="profile-label">Ngày sinh</span>
+                <div class="profile-inline-input">
+                  <input type="date" name="dob" value="<%= user && user.dob ? user.dob : '' %>" />
+                  <a href="#" class="link-btn">Thay đổi</a>
+                </div>
+              </label>
 
-      <label>Ngày sinh
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="date" name="dob" value="<%= user && user.dob ? user.dob : '' %>" style="flex:1" />
-          <a href="#" class="link-btn">Thay Đổi</a>
-        </div>
-      </label>
-
-      <div style="margin-top:12px">
-        <button class="save-btn" type="submit">Lưu</button>
-      </div>
-    </form>
-
-      <!-- Shipping addresses list -->
-      <div style="margin-top:18px">
-        <h4>Địa chỉ giao hàng</h4>
-        <% if (addresses && addresses.length) { %>
-          <% addresses.forEach(function(a){ %>
-            <% if (typeof user !== 'undefined' && a.user_id && Number(a.user_id) !== Number(user.id)) { return; } %>
-            <div class="address-item" style="margin-top:10px">
-              <div class="addr-meta">
-                <div style="font-weight:600"><%= a.recipient %> <% if (a.is_default) { %><span class="default-badge">Mặc định</span><% } %></div>
-                <div class="text-muted" style="margin-top:6px"><%= a.phone %> • <%= a.street %>, <%= a.city %> <%= a.postcode ? (' - ' + a.postcode) : '' %></div>
-              </div>
-              <div class="addr-actions">
-                <% if (!a.is_default) { %>
-                  <form method="post" action="/account/addresses/<%= a.id %>/set-default" style="display:inline">
-                    <button class="link-btn" type="submit">Đặt làm mặc định</button>
-                  </form>
-                <% } %>
-                <form method="post" action="/account/addresses/<%= a.id %>/delete" style="display:inline">
-                  <button class="remove" type="submit">Xóa</button>
-                </form>
+              <div class="profile-field field-span-2">
+                <span class="profile-label">Giới tính</span>
+                <div class="gender-group">
+                  <label class="gender-option"><input type="radio" name="gender" value="male" <%= (user && user.gender === 'male') ? 'checked' : '' %> > <span>Nam</span></label>
+                  <label class="gender-option"><input type="radio" name="gender" value="female" <%= (user && user.gender === 'female') ? 'checked' : '' %> > <span>Nữ</span></label>
+                  <label class="gender-option"><input type="radio" name="gender" value="other" <%= (user && user.gender === 'other') ? 'checked' : '' %> > <span>Khác</span></label>
+                </div>
               </div>
             </div>
-          <% }) %>
-        <% } else { %>
-          <div class="text-muted" style="margin-top:8px">Bạn chưa có địa chỉ giao hàng nào.</div>
-        <% } %>
-      </div>
 
-      <!-- Add new address -->
-      <div style="margin-top:18px">
-        <h4>Thêm địa chỉ giao hàng</h4>
-        <form method="post" action="/account/addresses" class="new-address" style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-          <input name="recipient" placeholder="Người nhận (ví dụ: Nguyễn Văn A)" required />
-          <input name="phone" placeholder="Số điện thoại" required />
-          <input name="street" placeholder="Địa chỉ (số nhà, đường)" required />
-          <input name="city" placeholder="Tỉnh / Thành phố" required />
-          <input name="postcode" placeholder="Số điện thoại 2 (Nếu có)" />
-          <div>
-            <button class="add-btn" type="submit">Thêm địa chỉ</button>
-          </div>
-        </form>
-      </div>
-
-    </div>
-
-  <!-- right: avatar card -->
-  <div class="profile-card">
-    <div class="avatar-wrap">
-      <div class="avatar-preview">
-        <img src="<%= (user && user.avatar) ? user.avatar : '/images/default.svg' %>" alt="avatar" />
-      </div>
-      <form method="post" action="/account/avatar" enctype="multipart/form-data" style="width:100%">
-        <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
-          <input type="file" name="avatar" accept="image/*" style="width:180px" />
-          <button class="btn-update" type="submit">Chọn Ảnh</button>
-          <div class="text-muted" style="font-size:13px;text-align:center">Dung lượng file tối đa 1 MB<br/>Định dạng: .JPEG, .PNG</div>
+            <div class="profile-actions-row">
+              <button class="save-btn" type="submit">Lưu thay đổi</button>
+            </div>
+          </form>
         </div>
-      </form>
+
+        <div class="profile-section-card address-section-card">
+          <div class="section-head">
+            <div>
+              <h3>Sổ địa chỉ giao hàng</h3>
+              <p class="text-muted">Lưu sẵn địa chỉ để checkout nhanh hơn và quản lý điểm nhận hàng rõ ràng hơn.</p>
+            </div>
+          </div>
+
+          <div class="address-list">
+            <% if (addresses && addresses.length) { %>
+              <% addresses.forEach(function(a){ %>
+                <% if (typeof user !== 'undefined' && a.user_id && Number(a.user_id) !== Number(user.id)) { return; } %>
+                <article class="address-item address-card-modern">
+                  <div class="addr-meta">
+                    <div class="address-topline">
+                      <strong class="address-recipient"><%= a.recipient %></strong>
+                      <% if (a.is_default) { %><span class="default-badge">Mặc định</span><% } %>
+                    </div>
+                    <div class="address-phone"><%= a.phone %></div>
+                    <div class="address-full text-muted"><%= a.street %>, <%= a.city %> <%= a.postcode ? (' - ' + a.postcode) : '' %></div>
+                  </div>
+                  <div class="addr-actions">
+                    <% if (!a.is_default) { %>
+                      <form method="post" action="/account/addresses/<%= a.id %>/set-default" style="display:inline">
+                        <button class="link-btn" type="submit">Đặt mặc định</button>
+                      </form>
+                    <% } %>
+                    <form method="post" action="/account/addresses/<%= a.id %>/delete" style="display:inline">
+                      <button class="remove" type="submit">Xóa</button>
+                    </form>
+                  </div>
+                </article>
+              <% }) %>
+            <% } else { %>
+              <div class="empty-address-state text-muted">Bạn chưa có địa chỉ giao hàng nào. Hãy thêm một địa chỉ để checkout nhanh hơn.</div>
+            <% } %>
+          </div>
+
+          <div class="new-address-card">
+            <div class="section-head compact">
+              <div>
+                <h4>Thêm địa chỉ mới</h4>
+                <p class="text-muted">Điền đầy đủ thông tin để lưu làm địa chỉ giao hàng.</p>
+              </div>
+            </div>
+            <form method="post" action="/account/addresses" class="new-address profile-address-form">
+              <div class="profile-grid">
+                <label class="profile-field">
+                  <span class="profile-label">Người nhận</span>
+                  <input name="recipient" placeholder="Ví dụ: Nguyễn Văn A" required />
+                </label>
+                <label class="profile-field">
+                  <span class="profile-label">Số điện thoại</span>
+                  <input name="phone" placeholder="Số điện thoại" required />
+                </label>
+                <label class="profile-field field-span-2">
+                  <span class="profile-label">Địa chỉ</span>
+                  <input name="street" placeholder="Số nhà, đường, phường / xã" required />
+                </label>
+                <label class="profile-field">
+                  <span class="profile-label">Tỉnh / Thành phố</span>
+                  <input name="city" placeholder="Tỉnh / Thành phố" required />
+                </label>
+                <label class="profile-field">
+                  <span class="profile-label">Ghi chú thêm</span>
+                  <input name="postcode" placeholder="Thông tin bổ sung (nếu có)" />
+                </label>
+              </div>
+              <div class="profile-actions-row">
+                <button class="add-btn" type="submit">Thêm địa chỉ</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <aside class="profile-card profile-sidebar-card">
+        <div class="avatar-wrap profile-avatar-stack">
+          <div class="avatar-preview profile-avatar-preview">
+            <img src="<%= (user && user.avatar) ? user.avatar : '/images/default.svg' %>" alt="avatar" />
+          </div>
+          <div class="profile-sidebar-copy">
+            <h3>Ảnh đại diện</h3>
+            <p class="text-muted">Ảnh này sẽ xuất hiện trong hồ sơ cá nhân của bạn.</p>
+          </div>
+          <form method="post" action="/account/avatar" enctype="multipart/form-data" class="avatar-upload-form">
+            <label class="avatar-upload-box">
+              <span class="profile-label">Chọn ảnh mới</span>
+              <input type="file" name="avatar" accept="image/*" />
+            </label>
+            <button class="btn-update" type="submit">Cập nhật ảnh</button>
+            <div class="avatar-help text-muted">Dung lượng tối đa 1 MB. Hỗ trợ định dạng JPG, JPEG, PNG.</div>
+          </form>
+        </div>
+      </aside>
     </div>
-  </div>
+  </section>
 </div>

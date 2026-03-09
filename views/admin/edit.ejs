@@ -1,36 +1,75 @@
 <div class="admin-wrap">
   <aside class="admin-sidebar">
-    <a href="/admin">Sản phẩm</a>
-    <a href="/admin/new">Tạo sản phẩm mới</a>
-    <a href="/admin/orders">Đơn hàng</a>
-    <a href="/admin/sales">Doanh thu</a>
+    <a href="/admin" class="nav-item active">
+      <span class="icon">📦</span>
+      <span class="label">Sản phẩm</span>
+    </a>
+    <a href="/admin/new" class="nav-item">
+      <span class="icon">✨</span>
+      <span class="label">Tạo sản phẩm mới</span>
+    </a>
+    <a href="/admin/orders" class="nav-item">
+      <span class="icon">🛒</span>
+      <span class="label">Đơn hàng</span>
+    </a>
+    <a href="/admin/sales" class="nav-item">
+      <span class="icon">📈</span>
+      <span class="label">Doanh thu</span>
+    </a>
   </aside>
   <div class="admin-main">
-  <h2>Chỉnh sửa sản phẩm</h2>
-  <div class="admin-form-card">
-  <form method="post" action="/admin/edit/<%= product.id %>" enctype="multipart/form-data" class="admin-form">
-      <label>Tiêu đề: <input name="title" value="<%= product.title %>" required/></label>
-      <label>Mô tả: <textarea name="description"><%= product.description %></textarea></label>
-      <div style="display:flex;gap:10px"><label>Giá: <input name="price" type="number" value="<%= product.price %>" /></label>
-      <label>Stock: <input name="stock" type="number" value="<%= product.stock %>" /></label>
-      <label>Danh mục: <input name="category" value="<%= product.category %>" /></label></div>
-  <label>Ảnh mới (có thể chọn nhiều): <input id="images-input" name="images" type="file" accept="image/*" multiple/></label>
-  <div id="preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+  <div class="admin-form-card product-form-card">
+  <div class="form-header product-form-header">
+    <div>
+      <h2>Chỉnh sửa sản phẩm</h2>
+      <p class="product-form-intro">Cập nhật giá, tồn kho, danh mục và bộ ảnh theo cùng một bố cục rõ ràng.</p>
+    </div>
+    <a href="/admin" class="report-link">Quay lại danh sách</a>
+  </div>
+  <form method="post" action="/admin/edit/<%= product.id %>" enctype="multipart/form-data" class="admin-form product-form">
+      <div class="product-form-grid">
+        <label class="product-field field-span-2">
+          <span class="product-label">Tiêu đề sản phẩm</span>
+          <input name="title" value="<%= product.title %>" required/>
+        </label>
+        <label class="product-field field-span-2">
+          <span class="product-label">Mô tả</span>
+          <textarea name="description" rows="6"><%= product.description %></textarea>
+        </label>
+        <label class="product-field">
+          <span class="product-label">Giá bán</span>
+          <input name="price" type="number" min="0" value="<%= product.price %>" />
+        </label>
+        <label class="product-field">
+          <span class="product-label">Số lượng tồn kho</span>
+          <input name="stock" type="number" min="0" value="<%= product.stock %>" />
+        </label>
+        <label class="product-field field-span-2">
+          <span class="product-label">Danh mục</span>
+          <input name="category" value="<%= product.category %>" />
+        </label>
+        <label class="product-field field-span-2 product-upload-field">
+          <span class="product-label">Ảnh mới</span>
+          <input id="images-input" name="images" type="file" accept="image/*" multiple/>
+          <small class="product-help">Có thể thêm nhiều ảnh cùng lúc. Ảnh mới sẽ được nối vào bộ ảnh hiện tại.</small>
+        </label>
+      </div>
+  <div id="preview" class="product-preview"></div>
       <% try { var imgs = product.images ? JSON.parse(product.images) : (product.image ? [product.image] : []); } catch(e){ imgs = product.image ? [product.image] : []; } %>
       <% if (imgs && imgs.length) { %>
-        <div style="margin-top:8px">
-          <p>Ảnh hiện có:</p>
+        <div class="existing-images">
+          <p class="existing-images-title">Ảnh hiện có</p>
           <% imgs.forEach(function(img){ %>
-            <div style="display:inline-block;margin-right:8px;text-align:center">
-              <img src="<%= img %>" style="width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid #eee" />
-              <div><label><input type="checkbox" name="removeImages" value="<%= img %>" /> Xóa</label></div>
+            <div class="existing-image-card">
+              <img src="<%= img %>" class="existing-image-thumb" />
+              <div><label class="existing-image-remove"><input type="checkbox" name="removeImages" value="<%= img %>" /> Xóa</label></div>
             </div>
           <% }) %>
         </div>
       <% } %>
-      <div style="margin-top:8px">
-        <button type="submit" class="btn">Lưu</button>
-        <a href="/admin" class="link-btn">Huỷ</a>
+      <div class="form-actions product-form-actions">
+        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+        <a href="/admin" class="btn-ghost">Hủy</a>
       </div>
     </form>
     </div>
