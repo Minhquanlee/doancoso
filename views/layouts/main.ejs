@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title><%= (typeof title !== 'undefined' ? title : 'Shop') %></title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=<%= assetVersion %>" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <!-- Google Font: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -204,11 +204,11 @@
     </footer>
     <% if (!(currentUser && currentUser.role === 'admin')) { %>
       <%- include('../partials/floating') %>
-      <script src="/js/cart.js"></script>
+      <script src="/js/cart.js?v=<%= assetVersion %>"></script>
     <% } %>
-    <script src="/js/page-transition.js"></script>
-    <script src="/js/ui-effects.js"></script>
-    <script src="/js/qrcode.min.js"></script>
+    <script src="/js/page-transition.js?v=<%= assetVersion %>"></script>
+    <script src="/js/ui-effects.js?v=<%= assetVersion %>"></script>
+    <script src="/js/qrcode.min.js?v=<%= assetVersion %>"></script>
     <script>
       // confirm delete for admin actions
       document.addEventListener('click', function(e){

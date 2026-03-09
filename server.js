@@ -23,12 +23,14 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER) {
 
 const app = express();
 const PORT = process.env.PORT || 5600;
+const ASSET_VERSION = '20260309-1';
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layouts/main');
 app.use(express.static(path.join(__dirname, 'public')));
+app.use((req,res,next)=>{ res.locals.assetVersion = ASSET_VERSION; next(); });
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
