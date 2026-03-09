@@ -21,6 +21,11 @@
         <strong>Lỗi:</strong> <%= error %>
       </div>
     <% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="account-alert success-alert">
+        <strong>Thành công:</strong> Thông tin cá nhân đã được cập nhật.
+      </div>
+    <% } %>
 
     <div class="account-layout-grid">
       <div class="account-content-column">

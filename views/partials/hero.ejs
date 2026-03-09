@@ -163,7 +163,7 @@
   for (let i = 0; i < realCount; i++) {
     const dot = document.createElement('button');
     dot.setAttribute('aria-label', 'Đi đến slide ' + (i + 1));
-    dot.addEventListener('click', () => goTo(i + 1));
+    dot.addEventListener('click', () => { pulseAnimation(); goTo(i + 1); });
     dotsContainer.appendChild(dot);
   }
   const dots = Array.from(dotsContainer.children);
@@ -178,7 +178,18 @@
     track.style.transition = withTransition ? 'transform 0.7s cubic-bezier(.22,.9,.33,1)' : 'none';
     track.style.transform = `translateX(${-(i * slideWidth)}px)`;
     updateDots(i);
+    updateActiveSlide(i);
     // no caption animation (captions removed)
+  }
+
+  function updateActiveSlide(i) {
+    let realIndex = i;
+    if (i === 0) realIndex = realCount;
+    if (i === realCount + 1) realIndex = 1;
+
+    slides.forEach(function(slide, slideIndex){
+      slide.classList.toggle('is-active', slideIndex === realIndex);
+    });
   }
 
   function updateDots(i) {
@@ -194,6 +205,14 @@
   function next(){ index++; moveToIndex(index, true); }
   function goTo(i){ index = i; moveToIndex(index, true); }
 
+  function pulseAnimation() {
+    root.classList.add('is-animating');
+    clearTimeout(root._fadeTimer);
+    root._fadeTimer = setTimeout(function(){
+      root.classList.remove('is-animating');
+    }, 380);
+  }
+
   track.addEventListener('transitionend', () => {
     if (index === 0) {
       index = realCount;
@@ -202,21 +221,22 @@
       index = 1;
       moveToIndex(index, false);
     }
+    root.classList.remove('is-animating');
   });
 
   let timer = null;
-  function startAuto(){ stopAuto(); timer = setInterval(() => next(), 4500); }
+  function startAuto(){ stopAuto(); timer = setInterval(() => { pulseAnimation(); next(); }, 4500); }
   function stopAuto(){ if (timer) clearInterval(timer); }
 
   root.addEventListener('mouseenter', stopAuto);
   root.addEventListener('mouseleave', startAuto);
 
-  prevBtn.addEventListener('click', prev);
-  nextBtn.addEventListener('click', next);
+  prevBtn.addEventListener('click', function(){ pulseAnimation(); prev(); });
+  nextBtn.addEventListener('click', function(){ pulseAnimation(); next(); });
 
   document.addEventListener('keydown', function(e){
-    if (e.key === 'ArrowLeft') prev();
-    if (e.key === 'ArrowRight') next();
+    if (e.key === 'ArrowLeft') { pulseAnimation(); prev(); }
+    if (e.key === 'ArrowRight') { pulseAnimation(); next(); }
   });
 
   window.addEventListener('resize', () => {
@@ -227,6 +247,7 @@
   requestAnimationFrame(() => {
     recalc();
     moveToIndex(index, false);
+    updateActiveSlide(index);
     startAuto();
   });
 

@@ -66,8 +66,8 @@
               <form method="post" action="/logout" data-confirm-logout="true" style="display:inline"><button type="submit" class="link-btn">Đăng xuất</button></form>
             <% } %>
           <% } else { %>
-            <a href="/login" class="link-btn" title="Đăng nhập">Đăng nhập</a>
-            <a href="/register" class="link-btn" title="Đăng ký" style="margin-left:8px">Đăng ký</a>
+            <a href="/login" class="link-btn" title="Đăng nhập" data-no-transition="true">Đăng nhập</a>
+            <a href="/register" class="link-btn" title="Đăng ký" style="margin-left:8px" data-no-transition="true">Đăng ký</a>
           <% } %>
         </div>
       </div>
@@ -97,7 +97,7 @@
             </div>
           <% } else { %>
             <div class="mobile-user">
-              <a href="/login" class="mobile-user-link">Đăng nhập</a>
+              <a href="/login" class="mobile-user-link" data-no-transition="true">Đăng nhập</a>
             </div>
           <% } %>
           <div class="brand"><a href="/">Q &amp; N SHOP</a></div>
@@ -115,8 +115,8 @@
             <a href="/order-status">Đơn hàng</a>
             <form method="post" action="/logout" data-confirm-logout="true"><button type="submit" class="link-btn">Đăng xuất</button></form>
           <% } else { %>
-            <a href="/login">Đăng nhập</a>
-            <a href="/register">Đăng ký</a>
+            <a href="/login" data-no-transition="true">Đăng nhập</a>
+            <a href="/register" data-no-transition="true">Đăng ký</a>
           <% } %>
         </div>
 
@@ -139,6 +139,17 @@
           <button type="submit" class="icon-btn"><i class="fas fa-search"></i></button>
         </form>
         <button class="mobile-search-close link-btn" aria-label="Đóng tìm kiếm"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+
+    <div class="auth-required-modal" aria-hidden="true">
+      <div class="auth-required-card" role="dialog" aria-modal="true" aria-labelledby="auth-required-title">
+        <h3 class="auth-required-title" id="auth-required-title">Bạn cần đăng nhập</h3>
+        <p class="auth-required-text">Bạn cần phải đăng nhập tài khoản để mua hàng. Chọn đăng nhập để tiếp tục mua sản phẩm.</p>
+        <div class="auth-required-actions">
+          <button type="button" class="link-btn auth-required-close">Để sau</button>
+          <a href="/login" class="btn auth-required-login" data-no-transition="true">Đăng nhập ngay</a>
+        </div>
       </div>
     </div>
 
@@ -195,6 +206,8 @@
       <%- include('../partials/floating') %>
       <script src="/js/cart.js"></script>
     <% } %>
+    <script src="/js/page-transition.js"></script>
+    <script src="/js/ui-effects.js"></script>
     <script src="/js/qrcode.min.js"></script>
     <script>
       // confirm delete for admin actions
@@ -286,7 +299,45 @@
         setupPreview('images-input');
         bindLogoutConfirmation();
         bindQuantityValidation();
+        bindAuthRequiredPrompt();
       });
+      function buildLoginUrlForCurrentPage(){
+        const next = window.location.pathname + window.location.search + window.location.hash;
+        const params = new URLSearchParams({ notice: 'Bạn cần đăng nhập để mua hàng.', next: next || '/' });
+        return '/login?' + params.toString();
+      }
+      function bindAuthRequiredPrompt(){
+        const modal = document.querySelector('.auth-required-modal');
+        const closeBtn = modal && modal.querySelector('.auth-required-close');
+        const loginLink = modal && modal.querySelector('.auth-required-login');
+        if (!modal || !closeBtn || !loginLink) return;
+
+        function closeModal(){
+          modal.classList.remove('show');
+          modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function openModal(loginUrl){
+          loginLink.setAttribute('href', loginUrl || buildLoginUrlForCurrentPage());
+          modal.classList.add('show');
+          modal.setAttribute('aria-hidden', 'false');
+        }
+
+        document.querySelectorAll('form[data-auth-required="true"]').forEach(function(form){
+          if (form.dataset.authBound === 'true') return;
+          form.dataset.authBound = 'true';
+          form.addEventListener('submit', function(e){
+            e.preventDefault();
+            openModal(buildLoginUrlForCurrentPage());
+          });
+        });
+
+        closeBtn.addEventListener('click', function(){ closeModal(); });
+        modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', function(e){
+          if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+        });
+      }
       // account avatar dropdown: toggle on click, close when clicking outside
       (function(){
         function closeAllMenus(){

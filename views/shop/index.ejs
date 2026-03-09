@@ -3,6 +3,9 @@
 <% if (!hideHero) { %>
   <%- include('../partials/hero') %>
 <% } %>
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="product-inline-alert" style="margin-bottom:16px"><%= error %></div>
+<% } %>
 <nav class="categories">
   <a href="/" class="cat <%= !activeSafe ? 'active' : '' %>">Tất cả</a>
   <% categoriesSafe.forEach(function(c){ %>
@@ -23,8 +26,15 @@
           <span class="badge"><%= p.category %></span>
           <span class="badge"><%= p.stock > 0 ? ('Con ' + p.stock) : 'Het hang' %></span>
         </div>
-        <form method="post" action="/cart/add" class="add-form">
+        <form method="post" action="/cart/add" class="add-form"<% if (!currentUser) { %> data-auth-required="true"<% } %>>
           <input type="hidden" name="productId" value="<%= p.id %>" />
+          <select name="option" aria-label="Chọn size" <%= p.stock > 0 ? 'required' : 'disabled' %>>
+            <option value="">Chọn size</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+          </select>
           <input type="number" name="qty" value="1" min="1" max="<%= p.stock %>" <%= p.stock <= 0 ? 'disabled' : '' %> />
           <button type="submit" class="btn" <%= p.stock <= 0 ? 'disabled' : '' %>><%= p.stock > 0 ? 'Thêm vào giỏ' : 'Hết hàng' %></button>
         </form>

@@ -30,11 +30,11 @@
         <p class="product-stock">Tồn kho: <strong><%= product.stock %></strong></p>
         <span class="stock-pill <%= product.stock > 10 ? 'stock-high' : (product.stock > 0 ? 'stock-medium' : 'stock-low') %>"><%= product.stock > 0 ? 'Còn hàng' : 'Hết hàng' %></span>
       </div>
-      <form method="post" action="/cart/add" class="buy-form">
+      <form method="post" action="/cart/add" class="buy-form"<% if (!currentUser) { %> data-auth-required="true"<% } %>>
         <input type="hidden" name="productId" value="<%= product.id %>" />
         <div class="field-row">
           <label class="product-form-field size-field"><span class="field-label">Size</span>
-            <select name="option">
+            <select name="option" required>
               <option value="">Chọn size</option>
               <option value="S">S</option>
               <option value="M">M</option>

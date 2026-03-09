@@ -291,7 +291,7 @@ app.get('/search', (req,res)=>{
   } catch(e){ products = []; }
   products = products.map(p => Object.assign({}, p, { safeImage: isValidImagePath(p.image) ? p.image : choosePlaceholder(p.title) }));
   // hide hero & top search when showing search results
-  res.render('shop/index',{ products, categories: res.locals.categories, activeCategory: null, title: 'Tìm kiếm: '+q, q, hideHero: true });
+  res.render('shop/index',{ products, categories: res.locals.categories, activeCategory: null, title: 'Tìm kiếm: '+q, q, hideHero: true, error: req.query.error || null });
 });
 
 // upload setup for product images (initialize early so routes can use `upload`)
@@ -484,6 +484,12 @@ function createPaidOrder(userId, items, total, addressId) {
   return tx(userId, items, total, addressId);
 }
 
+function normalizeProductOption(rawOption) {
+  const allowedOptions = new Set(['S', 'M', 'L', 'XL']);
+  const normalized = typeof rawOption === 'string' ? rawOption.trim().toUpperCase() : '';
+  return allowedOptions.has(normalized) ? normalized : null;
+}
+
 // routes
 app.get('/', (req,res)=>{
   const category = req.query.category;
@@ -497,7 +503,7 @@ app.get('/', (req,res)=>{
     return Object.assign({}, p, { safeImage: valid ? p.image : choosePlaceholder(p.title) });
   });
   // if a category query is present, hide the hero and top search (handled in the layout/index)
-  res.render('shop/index', { products, categories, activeCategory: category || null, hideHero: !!category });
+  res.render('shop/index', { products, categories, activeCategory: category || null, hideHero: !!category, error: req.query.error || null });
 });
 
 app.get('/search', (req,res)=>{
@@ -509,7 +515,7 @@ app.get('/search', (req,res)=>{
   } catch(e){ products = []; }
   products = products.map(p => Object.assign({}, p, { safeImage: (p.image && require('fs').existsSync(require('path').join(__dirname, 'public', p.image.replace(/^\//, '')))) ? p.image : choosePlaceholder(p.title) }));
   // hide hero & top search for explicit search pages
-  res.render('shop/index', { products, categories: res.locals.categories, activeCategory: null, q, hideHero: true });
+  res.render('shop/index', { products, categories: res.locals.categories, activeCategory: null, q, hideHero: true, error: req.query.error || null });
 });
 
 app.get('/product/:id', (req,res)=>{
@@ -596,15 +602,20 @@ app.post('/register',(req,res)=>{
   }
 });
 
-app.get('/login',(req,res)=>res.render('auth/login'));
+app.get('/login',(req,res)=>res.render('auth/login', {
+  notice: req.query.notice || null,
+  next: sanitizeNextPath(req.query.next)
+}));
 app.post('/login',(req,res)=>{
   const { email,password } = req.body;
-  if (!email || !password) return res.render('auth/login', { error: 'Vui lòng nhập email và mật khẩu.' });
+  const nextPath = sanitizeNextPath(req.body.next);
+  const loginViewData = { notice: req.body.notice || null, next: nextPath };
+  if (!email || !password) return res.render('auth/login', { ...loginViewData, error: 'Vui lòng nhập email và mật khẩu.' });
   const normalizedEmail = (email || '').toLowerCase().trim();
-  if (!normalizedEmail.includes('@')) return res.render('auth/login', { error: 'Email không hợp lệ (thiếu @).' });
+  if (!normalizedEmail.includes('@')) return res.render('auth/login', { ...loginViewData, error: 'Email không hợp lệ (thiếu @).' });
   const user = db.prepare('SELECT * FROM users WHERE lower(email) = ?').get(normalizedEmail);
-  if (!user) return res.render('auth/login', { error: 'Email chưa được đăng ký.' });
-  if (!bcrypt.compareSync(password, user.password)) return res.render('auth/login', { error: 'Mật khẩu không đúng.' });
+  if (!user) return res.render('auth/login', { ...loginViewData, error: 'Email chưa được đăng ký.' });
+  if (!bcrypt.compareSync(password, user.password)) return res.render('auth/login', { ...loginViewData, error: 'Mật khẩu không đúng.' });
   req.session.user = { id: user.id, email: user.email, name: user.name, role: user.role };
   // ensure session is saved before redirecting (avoids race on some setups)
   req.session.save(err=>{
@@ -628,7 +639,7 @@ app.post('/login',(req,res)=>{
       saveCartForUser(user.id, normalizedMerge);
       req.session.cart = normalizedMerge;
     } catch(e){ console.error('cart merge error', e && e.message); }
-    res.redirect('/');
+    res.redirect(nextPath || '/');
   });
 });
 
@@ -674,27 +685,38 @@ app.get('/account', requireLogin, (req,res)=>{
   const user = db.prepare('SELECT id,name,email,avatar,phone,gender,dob FROM users WHERE id = ?').get(req.session.user.id);
   const addresses = db.prepare('SELECT * FROM addresses WHERE user_id = ? ORDER BY created_at DESC').all(req.session.user.id);
   const error = req.query.error || null;
-  res.render('account/profile', { user, addresses, error });
+  const success = req.query.success ? true : false;
+  res.render('account/profile', { user, addresses, error, success });
 });
 
 app.post('/account', requireLogin, (req,res)=>{
   if (req.session.user && req.session.user.role === 'admin') return res.redirect('/admin');
   const { name, phone, gender, dob } = req.body;
+  const trimmedName = (name || '').trim();
+  const cleanedPhone = phone ? String(phone).replace(/\s+/g,'') : '';
   // basic phone validation: must be digits only, length 10, starts with 0
   if (phone) {
-    const cleaned = String(phone).replace(/\s+/g,'');
-    if (!/^0\d{9}$/.test(cleaned)) {
+    if (!/^0\d{9}$/.test(cleanedPhone)) {
       return res.redirect('/account?error=' + encodeURIComponent('Số điện thoại phải bắt đầu bằng 0 và gồm 10 chữ số.'));
     }
   }
   db.prepare('UPDATE users SET name = ?, phone = ?, gender = ?, dob = ? WHERE id = ?')
-    .run(name || null, phone || null, gender || null, dob || null, req.session.user.id);
+    .run(trimmedName || null, cleanedPhone || null, gender || null, dob || null, req.session.user.id);
+
+  const primaryAddress = db.prepare('SELECT id, recipient, phone FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC LIMIT 1').get(req.session.user.id);
+  if (primaryAddress) {
+    const nextRecipient = trimmedName || primaryAddress.recipient;
+    const nextPhone = cleanedPhone || primaryAddress.phone;
+    db.prepare('UPDATE addresses SET recipient = ?, phone = ? WHERE id = ? AND user_id = ?')
+      .run(nextRecipient, nextPhone, primaryAddress.id, req.session.user.id);
+  }
+
   // refresh session fields
-  req.session.user.name = name || req.session.user.name;
+  req.session.user.name = trimmedName || req.session.user.name;
+  req.session.user.phone = cleanedPhone || req.session.user.phone;
   req.session.user.gender = gender || req.session.user.gender;
   req.session.user.dob = dob || req.session.user.dob;
-  // after saving profile info, go back to homepage as requested
-  res.redirect('/');
+  res.redirect('/account?success=1');
 });
 
 app.post('/account/avatar', requireLogin, upload.single('avatar'), (req,res)=>{
@@ -741,12 +763,15 @@ app.post('/account/addresses/:id/set-default', requireLogin, (req,res)=>{
 
 // cart in session
 app.post('/cart/add', (req,res)=>{
+  if (!req.session.user) return res.redirect(buildLoginRedirect(req));
   const { productId, qty, option } = req.body;
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
   if (!product) return res.status(400).send('Invalid product');
+  const normalizedOption = normalizeProductOption(option);
+  if (!normalizedOption) return res.redirect(buildBackUrlWithError(req, 'Vui lòng chọn size trước khi thêm vào giỏ hàng.'));
   req.session.cart = req.session.cart || {};
   // store as compound key when option provided: "<productId>::<option>"
-  const key = option ? `${productId}::${option}` : `${productId}`;
+  const key = `${productId}::${normalizedOption}`;
   const requestedQty = Math.max(1, parseInt(qty, 10) || 1);
   const currentCart = req.session.cart || {};
   const otherQty = Object.keys(currentCart).reduce((sum, cartKey) => {
@@ -818,10 +843,12 @@ app.post('/cart/update', (req,res)=>{
 
 // buy-now: create a single order immediately for this product (with option)
 app.post('/buy-now', (req,res)=>{
-  if (!req.session.user) return res.redirect('/login');
+  if (!req.session.user) return res.redirect(buildLoginRedirect(req));
   const { productId, qty, option } = req.body;
   const p = db.prepare('SELECT * FROM products WHERE id = ?').get(productId);
   if (!p) return res.redirect('/');
+  const normalizedOption = normalizeProductOption(option);
+  if (!normalizedOption) return res.redirect(buildBackUrlWithError(req, 'Vui lòng chọn size trước khi mua hàng.'));
   const q = parseInt(qty)||1;
   const total = p.price * q;
   const availableStock = Math.max(0, parseInt(p.stock, 10) || 0);
@@ -832,7 +859,7 @@ app.post('/buy-now', (req,res)=>{
   const defaultAddr = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
   if (defaultAddr) {
     try {
-      const orderId = createPaidOrder(req.session.user.id, [{ product: p, quantity: q, option: option || null }], total, defaultAddr.id);
+      const orderId = createPaidOrder(req.session.user.id, [{ product: p, quantity: q, option: normalizedOption }], total, defaultAddr.id);
       syncCartToSession(req, {});
       return res.render('shop/checkout-success', { orderId, total });
     } catch (e) {
@@ -844,7 +871,7 @@ app.post('/buy-now', (req,res)=>{
   }
 
   // otherwise add to cart and redirect to checkout so user can fill address
-  const key = option ? `${productId}::${option}` : `${productId}`;
+  const key = `${productId}::${normalizedOption}`;
   req.session.cart = req.session.cart || {};
   req.session.cart[key] = (req.session.cart[key] || 0) + q;
   const normalized = normalizeCartWithInventory(req.session.cart);
@@ -1198,6 +1225,48 @@ function requireAdmin(req,res,next){
 function requireLogin(req,res,next){
   if (!req.session.user) return res.redirect('/login');
   next();
+}
+
+function sanitizeNextPath(rawPath){
+  if (typeof rawPath !== 'string') return '/';
+  if (!rawPath.startsWith('/') || rawPath.startsWith('//')) return '/';
+  return rawPath;
+}
+
+function buildLoginRedirect(req){
+  const fallbackPath = '/';
+  let nextPath = fallbackPath;
+  const referer = req.get('referer');
+
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      nextPath = sanitizeNextPath((refererUrl.pathname || '/') + (refererUrl.search || '') + (refererUrl.hash || ''));
+    } catch (error) {
+      nextPath = fallbackPath;
+    }
+  }
+
+  return '/login?notice=' + encodeURIComponent('Bạn cần đăng nhập để mua hàng.') + '&next=' + encodeURIComponent(nextPath);
+}
+
+function buildBackUrlWithError(req, message){
+  const fallbackPath = '/';
+  const referer = req.get('referer');
+
+  if (!referer) {
+    return fallbackPath + '?error=' + encodeURIComponent(message);
+  }
+
+  try {
+    const refererUrl = new URL(referer);
+    const pathname = sanitizeNextPath((refererUrl.pathname || '/') + (refererUrl.search || ''));
+    const base = new URL(pathname, 'http://local.test');
+    base.searchParams.set('error', message);
+    return base.pathname + base.search;
+  } catch (error) {
+    return fallbackPath + '?error=' + encodeURIComponent(message);
+  }
 }
 
 app.get('/admin', requireAdmin, (req,res)=>{
