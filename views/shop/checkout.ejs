@@ -6,70 +6,90 @@
   <% if (items.length === 0) { %>
     <p>Giỏ hàng trống</p>
   <% } else { %>
-    <div class="checkout-grid">
-      <section class="checkout-form">
-        <h3>Thông tin giao hàng</h3>
-        <% if (typeof defaultAddress !== 'undefined' && defaultAddress) { %>
-          <div class="default-address-block" style="border:1px solid #eee;padding:12px;border-radius:8px;margin-bottom:12px">
-            <strong>Địa chỉ mặc định của bạn</strong>
-            <div style="margin-top:8px">
-              <div><%= defaultAddress.recipient %> — <%= defaultAddress.phone %></div>
-              <div><%= defaultAddress.street %>, <%= defaultAddress.city %> <%= defaultAddress.postcode ? (' - ' + defaultAddress.postcode) : '' %></div>
+    <form method="post" action="/checkout" id="checkout-form">
+      <div class="checkout-grid">
+        <section class="checkout-form">
+          <h3>Thông tin giao hàng</h3>
+          <% if (typeof defaultAddress !== 'undefined' && defaultAddress) { %>
+            <div class="default-address-block" style="border:1px solid #eee;padding:12px;border-radius:8px;margin-bottom:12px">
+              <strong>Địa chỉ mặc định của bạn</strong>
+              <div style="margin-top:8px">
+                <div><%= defaultAddress.recipient %> — <%= defaultAddress.phone %></div>
+                <div><%= defaultAddress.street %>, <%= defaultAddress.city %> <%= defaultAddress.postcode ? (' - ' + defaultAddress.postcode) : '' %></div>
+              </div>
+              <input type="hidden" name="recipient" value="<%= defaultAddress.recipient %>" data-default-address-input="true" />
+              <input type="hidden" name="phone" value="<%= defaultAddress.phone %>" data-default-address-input="true" />
+              <input type="hidden" name="street" value="<%= defaultAddress.street %>" data-default-address-input="true" />
+              <input type="hidden" name="city" value="<%= defaultAddress.city %>" data-default-address-input="true" />
+              <input type="hidden" name="postcode" value="<%= defaultAddress.postcode || '' %>" data-default-address-input="true" />
+              <div style="margin-top:10px">
+                <button id="change-address" type="button" class="btn btn-ghost">Thay đổi địa chỉ</button>
+              </div>
             </div>
-            <div style="margin-top:10px">
-              <form id="use-default-form" method="post" action="/checkout" style="display:inline">
-                <input type="hidden" name="recipient" value="<%= defaultAddress.recipient %>" />
-                <input type="hidden" name="phone" value="<%= defaultAddress.phone %>" />
-                <input type="hidden" name="street" value="<%= defaultAddress.street %>" />
-                <input type="hidden" name="city" value="<%= defaultAddress.city %>" />
-                <input type="hidden" name="postcode" value="<%= defaultAddress.postcode || '' %>" />
-                <button class="btn primary-buy" type="submit">Thanh toán</button>
-              </form>
-              <button id="change-address" class="btn btn-ghost" style="margin-left:8px">Thay đổi địa chỉ</button>
-            </div>
-          </div>
-        <% } %>
+          <% } %>
 
-        <form method="post" action="/checkout" id="checkout-full-form" style="<%= (defaultAddress ? 'display:none' : '') %>">
-          <label>Người nhận
-            <input name="recipient" type="text" placeholder="Họ và tên" required />
-          </label>
-          <label>Số điện thoại
-            <input name="phone" type="tel" placeholder="0xxxxxxxxx" pattern="0[0-9]{9}" required />
-          </label>
-          <label>Địa chỉ
-            <input name="street" type="text" placeholder="Số nhà, đường, phường" required />
-          </label>
-          <label>Thành phố / quận
-            <input name="city" type="text" placeholder="Thành phố" required />
-          </label>
-          <label>Mã bưu chính (tuỳ chọn)
-            <input name="postcode" type="text" placeholder="Mã bưu chính" />
-          </label>
+          <div id="checkout-manual-fields" style="<%= (defaultAddress ? 'display:none' : '') %>">
+            <label>Người nhận
+              <input name="recipient" type="text" placeholder="Họ và tên" value="<%= formValues.recipient %>" <%= defaultAddress ? 'disabled' : 'required' %> />
+            </label>
+            <label>Số điện thoại
+              <input name="phone" type="tel" placeholder="0xxxxxxxxx" pattern="0[0-9]{9}" value="<%= formValues.phone %>" <%= defaultAddress ? 'disabled' : 'required' %> />
+            </label>
+            <label>Địa chỉ
+              <input name="street" type="text" placeholder="Số nhà, đường, phường" value="<%= formValues.street %>" <%= defaultAddress ? 'disabled' : 'required' %> />
+            </label>
+            <label>Thành phố / quận
+              <input name="city" type="text" placeholder="Thành phố" value="<%= formValues.city %>" <%= defaultAddress ? 'disabled' : 'required' %> />
+            </label>
+            <label>Mã bưu chính (tuỳ chọn)
+              <input name="postcode" type="text" placeholder="Mã bưu chính" value="<%= formValues.postcode %>" <%= defaultAddress ? 'disabled' : '' %> />
+            </label>
+          </div>
 
           <div class="form-actions">
             <button class="btn primary-buy" type="submit">Thanh toán (mô phỏng)</button>
           </div>
-        </form>
-      </section>
+        </section>
 
-      <aside class="order-summary">
-        <h3>Đơn hàng</h3>
-        <div class="summary-list">
-          <% items.forEach(it=>{ %>
-            <div class="summary-row">
-              <div class="summary-left"><%= it.product.title %> x <%= it.quantity %><div style="font-size:12px;color:#666">Tồn kho còn lại: <%= it.product.stock %></div></div>
-              <div class="summary-right"><%= (it.product.price * it.quantity).toLocaleString() %> VND</div>
+        <aside class="order-summary">
+          <h3>Đơn hàng</h3>
+          <div class="summary-list">
+            <% items.forEach(it=>{ %>
+              <div class="summary-row">
+                <div class="summary-left"><%= it.product.title %> x <%= it.quantity %><div style="font-size:12px;color:#666">Tồn kho còn lại: <%= it.product.stock %></div></div>
+                <div class="summary-right"><%= (it.product.price * it.quantity).toLocaleString() %> VND</div>
+              </div>
+            <% }) %>
+          </div>
+
+          <label style="display:block;margin-top:14px">
+            <span style="display:block;margin-bottom:6px;font-weight:600">Nhập mã giảm giá (nếu có)</span>
+            <input name="discountCode" type="text" form="checkout-form" placeholder="Ví dụ: ABC" value="<%= discountCodeInput || '' %>" style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd" />
+          </label>
+          <p style="margin-top:8px;color:#667085;font-size:13px;line-height:1.6">Mã giảm giá chỉ áp dụng khi trong đơn có đúng sản phẩm mà admin đã gắn cho mã. Mỗi tài khoản chỉ dùng được 1 lần cho mỗi mã, và mã sẽ tự hết hiệu lực khi dùng đủ số lượt admin đã đặt.</p>
+
+          <div class="summary-row" style="margin-top:14px;padding-top:12px;border-top:1px solid #eee">
+            <div class="summary-left">Tạm tính</div>
+            <div class="summary-right"><%= (subtotal || total).toLocaleString() %> VND</div>
+          </div>
+          <% if (discountSummary && discountSummary.discountAmount > 0 && discountSummary.appliedDiscount) { %>
+            <div class="summary-row" style="color:#b42318">
+              <div class="summary-left">Mã <strong><%= discountSummary.appliedDiscount.code %></strong></div>
+              <div class="summary-right">-<%= discountSummary.discountAmount.toLocaleString() %> VND</div>
             </div>
-          <% }) %>
-        </div>
-        <div class="summary-total">Tổng: <strong><%= total.toLocaleString() %> VND</strong></div>
+            <div class="summary-row" style="font-size:13px;color:#667085">
+              <div class="summary-left">Lượt còn lại sau đơn này</div>
+              <div class="summary-right"><%= Math.max(0, (discountSummary.appliedDiscount.remaining_uses || 0) - 1) %> / <%= discountSummary.appliedDiscount.usage_limit %></div>
+            </div>
+          <% } %>
+          <div class="summary-total">Tổng: <strong><%= total.toLocaleString() %> VND</strong></div>
 
-        <% if (stripePublishable) { %>
-          <button id="stripe-pay" type="button" class="btn btn-ghost">Thanh toán bằng thẻ (Stripe)</button>
-        <% } %>
-      </aside>
-    </div>
+          <% if (stripePublishable) { %>
+            <button id="stripe-pay" type="button" class="btn btn-ghost">Thanh toán bằng thẻ (Stripe)</button>
+          <% } %>
+        </aside>
+      </div>
+    </form>
 
     <!-- QR payment removed per request -->
 
@@ -77,31 +97,53 @@
       <script src="https://js.stripe.com/v3/"></script>
       <script>
         const stripe = Stripe('<%= stripePublishable %>');
-        function collectAddressValues(){
-          // prefer visible inputs; fallback to hidden inputs (use-default form)
-          const keys = ['recipient','phone','street','city','postcode'];
+        function collectCheckoutValues(){
+          const keys = ['recipient','phone','street','city','postcode','discountCode'];
           const out = {};
           keys.forEach(k=>{
-            const el = document.querySelector('[name="'+k+'"]:not([type="hidden"])') || document.querySelector('#use-default-form [name="'+k+'"]') || document.querySelector('#checkout-full-form [name="'+k+'"]');
+            const el = document.querySelector('#checkout-form [name="'+k+'"]:not([disabled])') || document.querySelector('#checkout-form [name="'+k+'"][type="hidden"]');
             out[k] = el ? el.value : '';
           });
           return out;
         }
 
         document.getElementById('stripe-pay') && document.getElementById('stripe-pay').addEventListener('click', async ()=>{
-          const addr = collectAddressValues();
-          const r = await fetch('/create-stripe-session', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addr) });
+          const payload = collectCheckoutValues();
+          const r = await fetch('/create-stripe-session', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           const j = await r.json();
           if (j.id) stripe.redirectToCheckout({ sessionId: j.id });
           else alert('Stripe session error: ' + (j.error || 'unknown'));
         });
 
-        // toggle full form when user clicks change-address
         const changeBtn = document.getElementById('change-address');
         if (changeBtn) {
           changeBtn.addEventListener('click', ()=>{
-            const f = document.getElementById('checkout-full-form');
-            if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+            const manualFields = document.getElementById('checkout-manual-fields');
+            const hiddenDefaults = document.querySelectorAll('[data-default-address-input="true"]');
+            if (manualFields) manualFields.style.display = '';
+            hiddenDefaults.forEach(function(input){ input.disabled = true; });
+            document.querySelectorAll('#checkout-manual-fields input').forEach(function(input){
+              input.disabled = false;
+              if (['recipient','phone','street','city'].indexOf(input.name) >= 0) input.required = true;
+            });
+            changeBtn.style.display = 'none';
+          });
+        }
+      </script>
+    <% } else { %>
+      <script>
+        const changeBtn = document.getElementById('change-address');
+        if (changeBtn) {
+          changeBtn.addEventListener('click', ()=>{
+            const manualFields = document.getElementById('checkout-manual-fields');
+            const hiddenDefaults = document.querySelectorAll('[data-default-address-input="true"]');
+            if (manualFields) manualFields.style.display = '';
+            hiddenDefaults.forEach(function(input){ input.disabled = true; });
+            document.querySelectorAll('#checkout-manual-fields input').forEach(function(input){
+              input.disabled = false;
+              if (['recipient','phone','street','city'].indexOf(input.name) >= 0) input.required = true;
+            });
+            changeBtn.style.display = 'none';
           });
         }
       </script>

@@ -4,10 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title><%= (typeof title !== 'undefined' ? title : 'Shop') %></title>
-    <link rel="stylesheet" href="/styles.css?v=<%= assetVersion %>" />
+    <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <!-- Google Font: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
   </head>
   <body>
@@ -17,8 +16,13 @@
           <button class="mobile-hamburger" aria-label="Mở menu" aria-expanded="false">
             <i class="fas fa-bars"></i>
           </button>
-          <div class="brand"><a href="/">Q &amp; N SHOP</a></div>
-          <div class="hotline">Liên hệ : <strong>19001508</strong></div>
+          <div class="brand">
+            <a href="/">
+              <span class="brand-mark">Q &amp; N SHOP</span>
+              <span class="brand-subtitle">Everyday Wardrobe</span>
+            </a>
+          </div>
+          <div class="hotline"><span class="hotline-label">Tư vấn</span><strong>19001508</strong></div>
         </div>
         <div class="top-center">
           <% if (typeof hideHero === 'undefined' || !hideHero) { %>
@@ -41,29 +45,37 @@
           <% if (currentUser) { %>
             <% if (currentUser.role !== 'admin') { %>
               <a href="/order-status" class="icon-btn" title="Trạng thái đơn hàng"><i class="fas fa-receipt"></i></a>
+              <a href="/chat" class="icon-btn" title="Nhắn tin với admin">
+                <i class="fas fa-comments"></i>
+                <% if (chatUnreadCount) { %><span class="icon-badge"><%= chatUnreadCount %></span><% } %>
+              </a>
+              <a href="/logout" class="icon-btn logout-icon-btn" title="Đăng xuất" data-confirm-logout="true" data-no-transition="true"><i class="fas fa-right-from-bracket"></i></a>
               <div class="account-menu" style="margin-left:8px">
                 <button class="account-toggle avatar-toggle" aria-haspopup="true" aria-expanded="false">
                   <img src="<%= currentUser.avatar ? currentUser.avatar : '/images/avatar.jpg' %>" alt="avatar" />
                 </button>
                 <div class="account-list">
                     <a href="/account">Hồ sơ</a>
+                    <a href="/chat">Tin nhắn</a>
                     <a href="/account/password">Đổi mật khẩu</a>
-                    <form method="post" action="/logout" data-confirm-logout="true" style="margin:0">
-                      <button type="submit" class="link-btn" style="display:block;padding:8px 12px;border:none;background:transparent;text-align:left">Đăng xuất</button>
-                    </form>
                   </div>
               </div>
             <% } else { %>
+              <a href="/admin/chats" class="icon-btn" title="Hộp thư khách hàng">
+                <i class="fas fa-comments"></i>
+                <% if (chatUnreadCount) { %><span class="icon-badge"><%= chatUnreadCount %></span><% } %>
+              </a>
               <div class="admin-menu" style="margin-left:8px">
                 <button class="admin-toggle" aria-haspopup="true" aria-expanded="false"><i class="fas fa-user-cog"></i></button>
                 <div class="admin-list">
                   <a href="/admin">Quản lý sản phẩm</a>
                   <a href="/admin/new">Thêm sản phẩm</a>
                   <a href="/admin/orders">Đơn hàng</a>
+                  <a href="/admin/chats">Tin nhắn khách hàng</a>
                   <a href="/admin/sales">Doanh thu</a>
                 </div>
               </div>
-              <form method="post" action="/logout" data-confirm-logout="true" style="display:inline"><button type="submit" class="link-btn">Đăng xuất</button></form>
+              <a href="/logout" class="icon-btn logout-icon-btn" title="Đăng xuất" data-confirm-logout="true" data-no-transition="true"><i class="fas fa-right-from-bracket"></i></a>
             <% } %>
           <% } else { %>
             <a href="/login" class="link-btn" title="Đăng nhập" data-no-transition="true">Đăng nhập</a>
@@ -100,7 +112,12 @@
               <a href="/login" class="mobile-user-link" data-no-transition="true">Đăng nhập</a>
             </div>
           <% } %>
-          <div class="brand"><a href="/">Q &amp; N SHOP</a></div>
+          <div class="brand">
+            <a href="/">
+              <span class="brand-mark">Q &amp; N SHOP</span>
+              <span class="brand-subtitle">Everyday Wardrobe</span>
+            </a>
+          </div>
           <button class="mobile-close" aria-label="Đóng menu"><i class="fas fa-times"></i></button>
         </div>
         <div class="mobile-cats">
@@ -111,9 +128,15 @@
         </div>
         <div class="mobile-links">
           <% if (currentUser) { %>
-            <a href="/account">Hồ sơ</a>
-            <a href="/order-status">Đơn hàng</a>
-            <form method="post" action="/logout" data-confirm-logout="true"><button type="submit" class="link-btn">Đăng xuất</button></form>
+            <% if (currentUser.role === 'admin') { %>
+              <a href="/admin">Quản trị</a>
+              <a href="/admin/chats">Tin nhắn khách hàng<% if (chatUnreadCount) { %> (<%= chatUnreadCount %>)<% } %></a>
+            <% } else { %>
+              <a href="/account">Hồ sơ</a>
+              <a href="/order-status">Đơn hàng</a>
+              <a href="/chat">Tin nhắn với admin<% if (chatUnreadCount) { %> (<%= chatUnreadCount %>)<% } %></a>
+            <% } %>
+            <a href="/logout" class="link-btn" data-confirm-logout="true" data-no-transition="true" onclick="event.preventDefault(); if (window.confirm('Bạn có chắc chắn muốn đăng xuất không?')) window.location.assign('/logout');">Đăng xuất</a>
           <% } else { %>
             <a href="/login" data-no-transition="true">Đăng nhập</a>
             <a href="/register" data-no-transition="true">Đăng ký</a>
@@ -204,11 +227,11 @@
     </footer>
     <% if (!(currentUser && currentUser.role === 'admin')) { %>
       <%- include('../partials/floating') %>
-      <script src="/js/cart.js?v=<%= assetVersion %>"></script>
+      <script src="/js/cart.js"></script>
     <% } %>
-    <script src="/js/page-transition.js?v=<%= assetVersion %>"></script>
-    <script src="/js/ui-effects.js?v=<%= assetVersion %>"></script>
-    <script src="/js/qrcode.min.js?v=<%= assetVersion %>"></script>
+    <script src="/js/page-transition.js"></script>
+    <script src="/js/ui-effects.js"></script>
+    <script src="/js/qrcode.min.js"></script>
     <script>
       // confirm delete for admin actions
       document.addEventListener('click', function(e){
@@ -238,12 +261,23 @@
         });
       }
       function bindLogoutConfirmation(){
-        document.querySelectorAll('form[data-confirm-logout="true"]').forEach(function(form){
-          if (form.dataset.logoutBound === 'true') return;
-          form.dataset.logoutBound = 'true';
-          form.addEventListener('submit', function(e){
+        document.querySelectorAll('[data-confirm-logout="true"]').forEach(function(element){
+          if (element.dataset.logoutBound === 'true') return;
+          element.dataset.logoutBound = 'true';
+          var eventName = element.tagName === 'FORM' ? 'submit' : 'click';
+          element.addEventListener(eventName, function(e){
+            e.preventDefault();
+            e.stopPropagation();
             const ok = window.confirm('Bạn có chắc chắn muốn đăng xuất không?');
-            if (!ok) e.preventDefault();
+            if (!ok) return;
+
+            if (element.tagName === 'FORM') {
+              element.submit();
+              return;
+            }
+
+            const targetHref = element.getAttribute('href') || '/logout';
+            window.location.assign(targetHref);
           });
         });
       }

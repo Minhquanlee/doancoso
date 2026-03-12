@@ -1,0 +1,114 @@
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <a href="/admin" class="nav-item <%= (activeAdmin==='products') ? 'active' : '' %>">
+      <span class="icon">📦</span>
+      <span class="label">Sản phẩm</span>
+    </a>
+    <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>">
+      <span class="icon">✨</span>
+      <span class="label">Tạo sản phẩm mới</span>
+    </a>
+    <a href="/admin/orders" class="nav-item <%= (activeAdmin==='orders') ? 'active' : '' %>">
+      <span class="icon">🛒</span>
+      <span class="label">Đơn hàng</span>
+    </a>
+    <a href="/admin/discounts" class="nav-item <%= (activeAdmin==='discounts') ? 'active' : '' %>">
+      <span class="icon">🏷️</span>
+      <span class="label">Mã giảm giá</span>
+    </a>
+    <a href="/admin/sales" class="nav-item <%= (activeAdmin==='sales') ? 'active' : '' %>">
+      <span class="icon">📈</span>
+      <span class="label">Doanh thu</span>
+    </a>
+  </aside>
+
+  <div class="admin-main">
+    <div class="admin-form-card product-form-card">
+      <div class="form-header product-form-header">
+        <div>
+          <h2>Mã giảm giá</h2>
+          <p class="product-form-intro">Tạo mã giảm giá theo từng sản phẩm. Mỗi mã hiện giảm một số tiền cố định cho một đơn hàng hợp lệ.</p>
+        </div>
+      </div>
+
+      <% if (error) { %>
+        <div style="margin-bottom:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(180,35,24,0.16);background:#fff5f4;color:#b42318"><%= error %></div>
+      <% } %>
+      <% if (success) { %>
+        <div style="margin-bottom:16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(47,111,87,0.18);background:#eefbf3;color:#166534"><%= success %></div>
+      <% } %>
+
+      <form method="post" action="/admin/discounts" class="admin-form product-form">
+        <div class="product-form-grid">
+          <label class="product-field">
+            <span class="product-label">Mã giảm giá</span>
+            <input name="code" placeholder="Ví dụ: ABC" required />
+          </label>
+          <label class="product-field">
+            <span class="product-label">Giảm trực tiếp (VND)</span>
+            <input name="discount_amount" type="number" min="1000" step="1000" placeholder="100000" required />
+          </label>
+          <label class="product-field">
+            <span class="product-label">Số lượng sử dụng tối đa</span>
+            <input name="usage_limit" type="number" min="1" step="1" placeholder="3" required />
+          </label>
+          <label class="product-field field-span-2">
+            <span class="product-label">Áp dụng cho sản phẩm</span>
+            <select name="product_id" required>
+              <option value="">-- Chọn sản phẩm --</option>
+              <% products.forEach(function(product){ %>
+                <option value="<%= product.id %>"><%= product.title %></option>
+              <% }) %>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-actions product-form-actions">
+          <button type="submit" class="btn btn-primary">Tạo mã giảm giá</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="admin-form-card product-form-card" style="margin-top:24px">
+      <div class="form-header product-form-header">
+        <div>
+          <h3>Danh sách mã đã tạo</h3>
+          <p class="product-form-intro">Mã sẽ có hiệu lực ngay khi sản phẩm tương ứng có trong giỏ hàng ở bước thanh toán.</p>
+        </div>
+      </div>
+
+      <% if (!discounts || discounts.length === 0) { %>
+        <p style="margin:0;color:var(--muted)">Chưa có mã giảm giá nào.</p>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Mã</th>
+              <th>Sản phẩm</th>
+              <th>Giảm</th>
+              <th>Lượt dùng</th>
+              <th>Ngày tạo</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% discounts.forEach(function(discount){ %>
+              <tr>
+                <td><strong><%= discount.code %></strong></td>
+                <td><%= discount.product_title || ('Sản phẩm #' + discount.product_id) %></td>
+                <td><%= (discount.discount_amount || 0).toLocaleString() %> VND</td>
+                <td><%= (discount.total_used || 0) %> / <%= discount.usage_limit %></td>
+                <td><%= discount.created_at %></td>
+                <td>
+                  <form method="post" action="/admin/discounts/<%= discount.id %>/delete" style="display:inline" onsubmit="return confirm('Xóa mã giảm giá <%= discount.code %>?')">
+                    <button type="submit" class="btn-detail">Xóa</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+</div>

@@ -1,56 +1,147 @@
-<h2>Giỏ hàng</h2>
-<% if (typeof error !== 'undefined' && error) { %>
-  <div style="margin-bottom:12px;padding:10px 12px;border:1px solid #f1c40f;background:#fff8db;border-radius:8px"><%= error %></div>
-<% } %>
-<% if (typeof warning !== 'undefined' && warning) { %>
-  <div style="margin-bottom:12px;padding:10px 12px;border:1px solid #f39c12;background:#fff4e5;border-radius:8px"><%= warning %></div>
-<% } %>
-<% if (items.length === 0) { %>
-  <p>Giỏ hàng trống</p>
-<% } else { %>
-  <form method="post" action="/cart/update">
-  <table>
-    <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Giá</th><th></th></tr></thead>
-    <tbody>
-    <% items.forEach(function(it, idx){ %>
-      <tr>
-        <td style="display:flex;gap:10px;align-items:center"><img loading="lazy" class="cart-thumb" src="<%= it.product.safeImage || it.product.image %>" alt=""/><span><%= it.product.title %><div style="font-size:12px;color:#666">Tồn kho: <strong><%= it.product.stock %></strong></div></span></td>
-        <td>
-          <input type="number" name="qty[]" value="<%= it.quantity %>" min="0" max="<%= it.product.stock %>" />
-          <input type="hidden" name="productId[]" value="<%= it.product.id %>" />
-          <% if (it.option) { %>
-            <div>Size: <strong><%= it.option %></strong></div>
-            <input type="hidden" name="option[]" value="<%= it.option %>" />
-          <% } %>
-        </td>
-        <td><%= (it.product.price * it.quantity).toLocaleString() %> VND</td>
-        <td>
-          <% const key = it.option ? ('' + it.product.id + '::' + it.option) : ('' + it.product.id); %>
-          <button type="button" onclick="removeItem('<%= key %>')">Xóa</button>
-        </td>
-      </tr>
-    <% }) %>
-    </tbody>
-  </table>
-  <p>Tổng: <strong><%= total.toLocaleString() %> VND</strong></p>
-  <div>
-    <button type="submit">Cập nhật giỏ</button>
-    <a href="/checkout"><button type="button">Thanh toán</button></a>
+<section class="cart-page">
+  <div class="cart-hero">
+    <div class="cart-hero-copy">
+      <p class="cart-eyebrow">Q &amp; N Cart</p>
+      <h2>Giỏ hàng của bạn</h2>
+      <p>Kiểm tra lại số lượng, kích cỡ và tổng thanh toán trước khi sang bước nhập địa chỉ và mã giảm giá.</p>
+    </div>
+    <div class="cart-hero-badge">
+      <span class="cart-hero-label">Tạm tính hiện tại</span>
+      <strong><%= total.toLocaleString() %> VND</strong>
+    </div>
   </div>
-  </form>
-<% } %>
 
-<!-- Order status moved to /order-status -->
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="cart-alert cart-alert-error"><%= error %></div>
+  <% } %>
+  <% if (typeof warning !== 'undefined' && warning) { %>
+    <div class="cart-alert cart-alert-warning"><%= warning %></div>
+  <% } %>
 
-  <script>
-    function removeItem(key){
-      // create a small form and submit to /cart/remove to avoid nesting forms
-      const f = document.createElement('form');
-      f.method = 'post';
-      f.action = '/cart/remove';
-      const inp = document.createElement('input');
-      inp.type = 'hidden'; inp.name = 'productId'; inp.value = key; f.appendChild(inp);
-      document.body.appendChild(f);
-      f.submit();
-    }
-  </script>
+  <% if (items.length === 0) { %>
+    <section class="cart-empty-state">
+      <div class="cart-empty-icon"><i class="fas fa-bag-shopping"></i></div>
+      <h3>Giỏ hàng đang trống</h3>
+      <p>Thêm vài sản phẩm vào giỏ để tiếp tục thanh toán hoặc áp dụng mã giảm giá ở bước checkout.</p>
+      <a href="/" class="btn primary-buy">Tiếp tục mua sắm</a>
+    </section>
+  <% } else { %>
+    <form method="post" action="/cart/update" class="cart-layout">
+      <section class="cart-items-panel">
+        <div class="cart-panel-head">
+          <div>
+            <h3>Sản phẩm trong giỏ</h3>
+            <p><%= items.length %> dòng sản phẩm đang chờ thanh toán.</p>
+          </div>
+        </div>
+
+        <div class="cart-item-list">
+          <% items.forEach(function(it){ %>
+            <% const lineTotal = it.product.price * it.quantity; %>
+            <% const key = it.option ? ('' + it.product.id + '::' + it.option) : ('' + it.product.id); %>
+            <article class="cart-item-card">
+              <div class="cart-item-media">
+                <img loading="lazy" class="cart-thumb" src="<%= it.product.safeImage || it.product.image %>" alt="<%= it.product.title %>" />
+              </div>
+
+              <div class="cart-item-body">
+                <div class="cart-item-top">
+                  <div>
+                    <h4><%= it.product.title %></h4>
+                    <div class="cart-item-meta">
+                      <% if (it.option) { %>
+                        <span class="cart-chip">Size: <strong><%= it.option %></strong></span>
+                      <% } %>
+                      <span class="cart-chip">Tồn kho: <strong><%= it.product.stock %></strong></span>
+                    </div>
+                  </div>
+                  <button type="button" class="cart-remove-btn" onclick="removeItem('<%= key %>')">Xóa</button>
+                </div>
+
+                <div class="cart-item-bottom">
+                  <div class="cart-qty-block">
+                    <label class="cart-qty-label">Số lượng</label>
+                    <div class="cart-qty-control">
+                      <input type="number" name="qty[]" value="<%= it.quantity %>" min="0" max="<%= it.product.stock %>" />
+                      <input type="hidden" name="productId[]" value="<%= it.product.id %>" />
+                      <% if (it.option) { %>
+                        <input type="hidden" name="option[]" value="<%= it.option %>" />
+                      <% } %>
+                    </div>
+                  </div>
+
+                  <div class="cart-line-price">
+                    <span>Thành tiền</span>
+                    <strong><%= lineTotal.toLocaleString() %> VND</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <aside class="cart-summary-panel">
+        <div class="cart-summary-card">
+          <h3>Tóm tắt đơn hàng</h3>
+          <div class="cart-summary-list">
+            <% items.forEach(function(it){ %>
+              <div class="cart-summary-row">
+                <div>
+                  <strong><%= it.product.title %></strong>
+                  <span>x <%= it.quantity %></span>
+                </div>
+                <div><%= (it.product.price * it.quantity).toLocaleString() %> VND</div>
+              </div>
+            <% }) %>
+          </div>
+          <div class="cart-summary-total">
+            <span>Tổng tạm tính</span>
+            <strong><%= total.toLocaleString() %> VND</strong>
+          </div>
+
+          <div class="cart-summary-actions">
+            <button type="submit" class="btn secondary cart-action-btn">Cập nhật giỏ</button>
+            <a href="/checkout?source=cart" class="btn primary-buy cart-action-btn">Thanh toán</a>
+          </div>
+
+          <div class="cart-summary-note">
+            Bạn có thể nhập mã giảm giá ở bước thanh toán. Hệ thống sẽ kiểm tra đúng sản phẩm trước khi trừ tiền.
+          </div>
+        </div>
+
+        <% if (recentOrders && recentOrders.length) { %>
+          <div class="cart-history-card">
+            <h4>Đơn gần đây</h4>
+            <div class="cart-history-list">
+              <% recentOrders.forEach(function(entry){ %>
+                <a href="/order/<%= entry.order.id %>" class="cart-history-item">
+                  <div>
+                    <strong>Đơn #<%= entry.order.id %></strong>
+                    <span><%= entry.order.status %></span>
+                  </div>
+                  <div><%= entry.order.total.toLocaleString() %> VND</div>
+                </a>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+      </aside>
+    </form>
+  <% } %>
+</section>
+
+<script>
+  function removeItem(key){
+    const f = document.createElement('form');
+    f.method = 'post';
+    f.action = '/cart/remove';
+    const inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = 'productId';
+    inp.value = key;
+    f.appendChild(inp);
+    document.body.appendChild(f);
+    f.submit();
+  }
+</script>

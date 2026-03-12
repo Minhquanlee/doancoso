@@ -28,7 +28,27 @@
   <button class="hero-nav next">&#10095;</button>
 
   <div class="hero-dots"></div>
-  <!-- captions removed per request -->
+  <div class="hero-content">
+    <div class="hero-copy-panel">
+      <p class="hero-kicker">Bộ sưu tập mới</p>
+      <h1>Tối giản, dễ mặc, nhìn vẫn sang</h1>
+      <p class="hero-summary">Chọn nhanh các mẫu áo quần phù hợp đi học, đi làm và mặc hằng ngày với gam màu dễ phối, form gọn và giao diện mua sắm rõ ràng.</p>
+      <div class="hero-actions">
+        <a href="#product-grid" class="btn primary">Khám phá ngay</a>
+        <a href="tel:19001508" class="btn ghost">Tư vấn chọn đồ</a>
+      </div>
+    </div>
+    <div class="hero-stat-panel" aria-label="Thong tin noi bat">
+      <div class="hero-stat-card">
+        <span class="hero-stat-label">Phong cách</span>
+        <strong>Minimal fashion</strong>
+      </div>
+      <div class="hero-stat-card">
+        <span class="hero-stat-label">Mua sắm</span>
+        <strong>Nhanh, dễ, rõ ràng</strong>
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -36,10 +56,12 @@
     position: relative;
     width: 100%;
     max-width: 1200px;
-    margin: 20px auto;
+    margin: 24px auto 28px;
     overflow: hidden;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    border-radius: 28px;
+    border: 1px solid rgba(230, 223, 210, 0.8);
+    box-shadow: 0 28px 60px rgba(17, 24, 39, 0.14);
+    background: #0f1720;
   }
 
   .hero-track {
@@ -50,48 +72,173 @@
 
   .hero-slide {
     min-width: 100%;
-    height: 420px;
+    height: 560px;
     flex-shrink: 0;
   }
 
   .hero-slide {
-  width: 100%;
-  flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #0000;
-}
+    width: 100%;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #0000;
+  }
 
-.hero-slide img {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  display: block;
-}
+  .hero-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: saturate(0.9) contrast(0.95) brightness(0.78);
+  }
+
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgba(10, 15, 23, 0.84) 0%, rgba(10, 15, 23, 0.62) 36%, rgba(10, 15, 23, 0.24) 68%, rgba(10, 15, 23, 0.16) 100%),
+      linear-gradient(180deg, rgba(200, 169, 126, 0.16) 0%, rgba(200, 169, 126, 0) 40%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .hero-content {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 40px;
+  }
+
+  .hero-copy-panel {
+    width: min(100%, 620px);
+    color: #f8f5f0;
+  }
+
+  .hero-kicker {
+    margin: 0 0 14px;
+    color: #d7bf98;
+    font-size: 12px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .hero-copy-panel h1 {
+    margin: 0;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(52px, 7vw, 84px);
+    line-height: 0.92;
+    letter-spacing: 0.01em;
+    font-weight: 600;
+    max-width: 9ch;
+  }
+
+  .hero-summary {
+    margin: 18px 0 0;
+    max-width: 560px;
+    color: rgba(248, 245, 240, 0.82);
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .hero-actions {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .hero-actions .btn {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    padding-inline: 18px;
+  }
+
+  .hero-actions .btn.primary {
+    background: #f8f5f0;
+    color: #111827;
+    box-shadow: 0 18px 36px rgba(10, 15, 23, 0.2);
+  }
+
+  .hero-actions .btn.primary:hover {
+    background: #ffffff;
+  }
+
+  .hero-actions .btn.ghost {
+    background: rgba(255, 253, 248, 0.08);
+    color: #f8f5f0;
+    border: 1px solid rgba(255, 253, 248, 0.2);
+  }
+
+  .hero-actions .btn.ghost:hover {
+    background: rgba(255, 253, 248, 0.14);
+  }
+
+  .hero-stat-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    width: min(240px, 100%);
+  }
+
+  .hero-stat-card {
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(255, 253, 248, 0.12);
+    border: 1px solid rgba(255, 253, 248, 0.16);
+    backdrop-filter: blur(12px);
+    color: #f8f5f0;
+    box-shadow: 0 18px 36px rgba(10, 15, 23, 0.12);
+  }
+
+  .hero-stat-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #d7bf98;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .hero-stat-card strong {
+    font-size: 18px;
+    line-height: 1.4;
+    font-weight: 700;
+  }
 
   .hero-nav {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0,0,0,0.4);
-    color: #ece6e6;
+    background: rgba(255, 253, 248, 0.12);
+    color: #f8f5f0;
     border: none;
     width: 48px;
     height: 48px;
     border-radius: 50%;
     font-size: 24px;
     cursor: pointer;
-    transition: background 0.24s ease, transform 0.18s ease, color 0.18s ease;
+    transition: background 0.24s ease, transform 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
     z-index: 10;
+    border: 1px solid rgba(255, 253, 248, 0.14);
+    backdrop-filter: blur(10px);
   }
 
-  /* arrow hover: brand color, white icon, slight scale */
   .hero-nav:hover, .hero-nav:focus {
-    background: var(--accent);
-    color: #fff;
+    background: #f8f5f0;
+    color: #111827;
     transform: translateY(-50%) scale(1.08);
-    box-shadow:0 8px 24px rgba(108,92,231,0.16);
+    box-shadow: 0 10px 24px rgba(10, 15, 23, 0.22);
     outline: none;
   }
 
@@ -100,7 +247,7 @@
 
   .hero-dots {
     position: absolute;
-    bottom: 15px;
+    bottom: 22px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -113,18 +260,114 @@
     height: 10px;
     border-radius: 50%;
     border: none;
-    background: rgba(235,235,241,0.6);
+    background: rgba(248, 245, 240, 0.45);
     cursor: pointer;
     transition: background 0.18s ease, transform 0.18s ease, width 0.18s ease;
   }
 
-  /* normal dot hover: subtle grow and tint */
-  .hero-dots button:hover { transform: scale(1.12); background: rgba(108,92,231,0.12); }
+  .hero-dots button:hover { transform: scale(1.12); background: rgba(248, 245, 240, 0.78); }
 
-  /* active dot: pill-shaped and highlighted */
-  .hero-dots button.active { background: var(--accent); width: 28px; height:10px; border-radius:999px; transform: scale(1.03); box-shadow:0 8px 20px rgba(108,92,231,0.12); }
+  .hero-dots button.active { background: #d7bf98; width: 28px; height:10px; border-radius:999px; transform: scale(1.03); box-shadow: 0 8px 20px rgba(200, 169, 126, 0.24); }
 
-  /* caption removed */
+  @media (max-width: 900px) {
+    .hero-slide {
+      height: 520px;
+    }
+
+    .hero-content {
+      padding: 28px;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+
+    .hero-copy-panel h1 {
+      font-size: clamp(44px, 11vw, 68px);
+      max-width: 10ch;
+    }
+
+    .hero-stat-panel {
+      width: 100%;
+      max-width: 100%;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .hero-stat-card {
+      flex: 1 1 220px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hero-slider {
+      margin: 18px auto 22px;
+      border-radius: 22px;
+    }
+
+    .hero-slide {
+      height: 560px;
+    }
+
+    .hero-overlay {
+      background:
+        linear-gradient(180deg, rgba(10, 15, 23, 0.26) 0%, rgba(10, 15, 23, 0.5) 28%, rgba(10, 15, 23, 0.88) 100%),
+        linear-gradient(180deg, rgba(200, 169, 126, 0.16) 0%, rgba(200, 169, 126, 0) 40%);
+    }
+
+    .hero-content {
+      padding: 20px;
+      gap: 16px;
+    }
+
+    .hero-copy-panel {
+      width: 100%;
+    }
+
+    .hero-copy-panel h1 {
+      font-size: 46px;
+      line-height: 0.96;
+      max-width: 8ch;
+    }
+
+    .hero-summary {
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: none;
+    }
+
+    .hero-actions {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .hero-actions .btn {
+      width: 100%;
+    }
+
+    .hero-stat-panel {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .hero-nav {
+      width: 42px;
+      height: 42px;
+      top: auto;
+      bottom: 76px;
+      transform: none;
+    }
+
+    .hero-nav:hover, .hero-nav:focus {
+      transform: scale(1.04);
+    }
+
+    .hero-nav.prev { left: 18px; }
+    .hero-nav.next { right: 18px; }
+
+    .hero-dots {
+      bottom: 18px;
+    }
+  }
 </style>
 
 <script>

@@ -1,13 +1,30 @@
-<h2>Hộp thư chat</h2>
-<table>
-  <thead><tr><th>User</th><th>Last message</th><th>Action</th></tr></thead>
-  <tbody>
-    <% chats.forEach(c=>{ %>
-      <tr>
-        <td><%= c.user.name %> (<%= c.user.email %>)</td>
-        <td><%= c.last.content %> — <small><%= c.last.created_at %></small></td>
-        <td><a href="/admin/chat/<%= c.user.id %>" class="link-btn">Open</a></td>
-      </tr>
-    <% }) %>
-  </tbody>
-</table>
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <a href="/admin" class="nav-item <%= (activeAdmin==='products') ? 'active' : '' %>"><span class="icon">📦</span><span class="label">Sản phẩm</span></a>
+    <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>"><span class="icon">✨</span><span class="label">Tạo sản phẩm mới</span></a>
+    <a href="/admin/orders" class="nav-item <%= (activeAdmin==='orders') ? 'active' : '' %>"><span class="icon">🛒</span><span class="label">Đơn hàng</span></a>
+    <a href="/admin/discounts" class="nav-item <%= (activeAdmin==='discounts') ? 'active' : '' %>"><span class="icon">🏷️</span><span class="label">Mã giảm giá</span></a>
+    <a href="/admin/chats" class="nav-item <%= (activeAdmin==='chats') ? 'active' : '' %>"><span class="icon">💬</span><span class="label">Tin nhắn</span></a>
+    <a href="/admin/sales" class="nav-item <%= (activeAdmin==='sales') ? 'active' : '' %>"><span class="icon">📈</span><span class="label">Doanh thu</span></a>
+  </aside>
+  <div class="admin-main">
+    <h2>Hộp thư khách hàng</h2>
+    <% if (!chats || chats.length === 0) { %>
+      <p>Chưa có cuộc trò chuyện nào.</p>
+    <% } else { %>
+      <table>
+        <thead><tr><th>Khách hàng</th><th>Tin nhắn gần nhất</th><th>Chưa đọc</th><th>Thao tác</th></tr></thead>
+        <tbody>
+          <% chats.forEach(c=>{ %>
+            <tr>
+              <td><strong><%= c.user.name %></strong><br/><small><%= c.user.email %></small></td>
+              <td><%= c.last.content %><br/><small><%= c.last.created_at %></small></td>
+              <td><%= c.unreadCount || 0 %></td>
+              <td><a href="/admin/chat/<%= c.user.id %>" class="link-btn">Mở chat</a></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>

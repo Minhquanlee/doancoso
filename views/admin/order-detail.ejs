@@ -19,6 +19,12 @@
             <div class="kv-label">Tổng</div>
             <div class="kv-value"><%= order.total.toLocaleString() %> VND</div>
           </div>
+          <% if (order.discount_amount > 0) { %>
+            <div class="kv-item">
+              <div class="kv-label">Giảm giá</div>
+              <div class="kv-value" style="color:#b42318">-<%= order.discount_amount.toLocaleString() %> VND (<%= order.discount_code %>)</div>
+            </div>
+          <% } %>
           <div class="kv-item">
             <div class="kv-label">Trạng thái</div>
             <div class="kv-value"><span class="order-status-badge <%= order.status %>"><%= order.status.toUpperCase() %></span></div>

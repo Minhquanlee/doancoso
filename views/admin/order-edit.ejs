@@ -26,6 +26,10 @@
 
     <div style="flex:1">
       <h4>Thông tin đơn</h4>
+      <% if (order.discount_amount > 0) { %>
+        <p><strong>Tạm tính:</strong> <%= (order.subtotal || order.total).toLocaleString() %> VND</p>
+        <p><strong>Mã giảm giá:</strong> <%= order.discount_code %> — giảm <%= order.discount_amount.toLocaleString() %> VND</p>
+      <% } %>
       <p><strong>Tổng:</strong> <%= order.total.toLocaleString() %> VND</p>
       <h4>Sản phẩm</h4>
       <ul>

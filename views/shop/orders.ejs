@@ -10,6 +10,9 @@
         <li><%= i.title %> x <%= i.quantity %> — <%= (i.price * i.quantity).toLocaleString() %> VND</li>
       <% }) %>
       </ul>
+      <% if (o.order.discount_amount > 0) { %>
+        <p>Mã giảm giá: <strong><%= o.order.discount_code %></strong> — giảm <strong><%= o.order.discount_amount.toLocaleString() %> VND</strong></p>
+      <% } %>
       <p>Tổng: <strong><%= o.order.total.toLocaleString() %> VND</strong></p>
     </section>
   <% }) %>

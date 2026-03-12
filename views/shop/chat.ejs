@@ -2,6 +2,9 @@
 
 <div class="chat-container">
   <div class="chat-box">
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div style="margin-bottom:12px;padding:12px 14px;border-radius:12px;border:1px solid rgba(180,35,24,0.16);background:#fff5f4;color:#b42318"><%= error %></div>
+    <% } %>
     <% if (messages.length === 0) { %>
       <p class="no-messages">Chưa có tin nhắn. Gửi tin nhắn để bắt đầu.</p>
     <% } else { %>

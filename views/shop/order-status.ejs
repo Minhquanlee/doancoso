@@ -17,6 +17,9 @@
         </li>
       <% }) %>
       </ul>
+      <% if (o.order.discount_amount > 0) { %>
+        <p>Mã giảm giá: <strong><%= o.order.discount_code %></strong> — giảm <strong><%= o.order.discount_amount.toLocaleString() %> VND</strong></p>
+      <% } %>
       <p>Tổng: <strong><%= o.order.total.toLocaleString() %> VND</strong></p>
       <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
         <a href="/order/<%= o.order.id %>" class="btn-ghost">Xem</a>

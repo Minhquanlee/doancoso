@@ -6,7 +6,12 @@
       <tr>
         <td><%= o.order.id %></td>
         <td><%= o.order.user_id %></td>
-        <td><%= o.order.total.toLocaleString() %></td>
+        <td>
+          <div><%= o.order.total.toLocaleString() %></div>
+          <% if (o.order.discount_amount > 0) { %>
+            <small style="color:#b42318">-<%= o.order.discount_amount.toLocaleString() %> VND (<%= o.order.discount_code %>)</small>
+          <% } %>
+        </td>
   <!-- status column removed per admin request -->
         <td>
           <ul>

@@ -1,92 +1,356 @@
 <div class="admin-wrap">
   <aside class="admin-sidebar">
-    <a href="/admin">Sản phẩm</a>
-    <a href="/admin/new">Tạo sản phẩm mới</a>
-    <a href="/admin/orders">Đơn hàng</a>
-    <a href="/admin/sales" class="active">Doanh thu</a>
+    <a href="/admin" class="nav-item <%= (activeAdmin==='products') ? 'active' : '' %>">
+      <span class="icon">📦</span>
+      <span class="label">Sản phẩm</span>
+    </a>
+    <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>">
+      <span class="icon">✨</span>
+      <span class="label">Tạo sản phẩm mới</span>
+    </a>
+    <a href="/admin/orders" class="nav-item <%= (activeAdmin==='orders') ? 'active' : '' %>">
+      <span class="icon">🛒</span>
+      <span class="label">Đơn hàng</span>
+    </a>
+    <a href="/admin/discounts" class="nav-item <%= (activeAdmin==='discounts') ? 'active' : '' %>">
+      <span class="icon">🏷️</span>
+      <span class="label">Mã giảm giá</span>
+    </a>
+    <a href="/admin/sales" class="nav-item <%= (activeAdmin==='sales') ? 'active' : '' %>">
+      <span class="icon">📈</span>
+      <span class="label">Doanh thu</span>
+    </a>
   </aside>
-  <div class="admin-main">
-    <style>
-      .active-period { font-weight:700; }
-    </style>
-    <h2>Báo cáo doanh thu & bán chạy</h2>
-    <p>Danh sách sản phẩm được mua nhiều nhất (loại trừ các đơn hàng đã bị huỷ)</p>
-    <div style="margin-top:10px;margin-bottom:12px;display:flex;gap:8px;align-items:center">
-      <div style="background:#fff;border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(2,6,23,0.04);display:flex;gap:6px">
-        <button id="tab-bests" class="link-btn active-period" style="border:none;background:transparent;cursor:pointer;padding:6px 10px">Bán chạy</button>
-        <button id="tab-history" class="link-btn" style="border:none;background:transparent;cursor:pointer;padding:6px 10px">Lịch sử</button>
+
+  <div class="admin-main sales-dashboard">
+    <section class="sales-hero-card">
+      <div>
+        <p class="sales-eyebrow">Bảng điều khiển doanh thu</p>
+        <h1>Hiệu suất bán hàng theo <%= period === 'day' ? 'ngày' : (period === 'week' ? 'tuần' : 'tháng') %></h1>
+        <p class="sales-hero-copy">Theo dõi doanh thu, sản phẩm bán chạy và nhóm khách hàng giá trị cao trên cùng một màn hình.</p>
       </div>
-    </div>
-    <div style="margin-top:8px;margin-bottom:12px;display:flex;gap:8px;align-items:center">
-  <a href="/admin/sales?period=day" class="link-btn <%= period==='day' ? 'active-period' : '' %>">Theo ngày</a>
-  <a href="/admin/sales?period=week" class="link-btn <%= period==='week' ? 'active-period' : '' %>">Theo tuần</a>
-  <a href="/admin/sales?period=month" class="link-btn <%= (typeof period==='undefined' || period==='month') ? 'active-period' : '' %>">Theo tháng</a>
-      <div style="margin-left:16px;color:var(--muted)">Tổng doanh thu: <strong style="color:var(--accent)"><%= (totalRevenue||0).toLocaleString() %> VND</strong></div>
-      <a href="/admin/sales/export?period=<%= period %>" class="link-btn" style="margin-left:12px">Export CSV</a>
-    </div>
-    <div class="sales-grid" style="margin-top:12px">
-      <div id="sales-history" class="sales-left">
-        <h4 style="margin-bottom:8px">Lịch sử doanh thu theo ngày</h4>
-        <% if (!dailyHistory || dailyHistory.length === 0) { %>
-          <div class="card" style="padding:12px">Chưa có dữ liệu doanh thu theo ngày.</div>
+      <div class="sales-toolbar">
+        <div class="sales-period-switch">
+          <a href="/admin/sales?period=day" class="<%= period==='day' ? 'active' : '' %>">24 giờ</a>
+          <a href="/admin/sales?period=week" class="<%= period==='week' ? 'active' : '' %>">7 ngày</a>
+          <a href="/admin/sales?period=month" class="<%= period==='month' ? 'active' : '' %>">30 ngày</a>
+        </div>
+        <a href="/admin/sales/export?period=<%= period %>" class="sales-export-link">Export CSV</a>
+      </div>
+    </section>
+
+    <section class="sales-kpi-grid">
+      <article class="sales-kpi-card accent-revenue">
+        <span class="kpi-label">Tổng doanh thu</span>
+        <strong><%= (totalRevenue || 0).toLocaleString() %> VND</strong>
+        <small>Đơn hợp lệ trong kỳ đã chọn</small>
+      </article>
+      <article class="sales-kpi-card accent-orders">
+        <span class="kpi-label">Số đơn hàng</span>
+        <strong><%= totalOrders || 0 %></strong>
+        <small>Không tính đơn đã hủy</small>
+      </article>
+      <article class="sales-kpi-card accent-customers">
+        <span class="kpi-label">Khách hàng mua hàng</span>
+        <strong><%= totalCustomers || 0 %></strong>
+        <small>Số tài khoản phát sinh đơn</small>
+      </article>
+      <article class="sales-kpi-card accent-aov">
+        <span class="kpi-label">Giá trị đơn trung bình</span>
+        <strong><%= (averageOrderValue || 0).toLocaleString() %> VND</strong>
+        <small><%= totalUnitsSold || 0 %> sản phẩm đã bán</small>
+      </article>
+    </section>
+
+    <section class="sales-insight-grid">
+      <article class="sales-spotlight-card">
+        <div class="spotlight-head">
+          <span>Top sản phẩm</span>
+          <span class="spotlight-badge">Bán chạy nhất</span>
+        </div>
+        <% if (topProduct) { %>
+          <div class="spotlight-body">
+            <img src="<%= topProduct.safeImage %>" alt="<%= topProduct.title %>" class="spotlight-image" />
+            <div>
+              <h3><%= topProduct.title %></h3>
+              <p><strong><%= topProduct.total_qty %></strong> lượt mua, tạo ra <strong><%= (topProduct.revenue || 0).toLocaleString() %> VND</strong>.</p>
+            </div>
+          </div>
         <% } else { %>
-          <div class="day-list">
-            <% dailyHistory.forEach(d=>{ %>
-              <a href="/admin/sales/day/<%= d.day %>?period=<%= period %>" style="text-decoration:none;color:inherit">
-                <div class="day-card">
-                  <div class="day-left"><%= d.day %></div>
-                  <div class="day-right"><div class="day-meta"><%= d.orders %> đơn</div><div class="revenue"><%= (d.revenue||0).toLocaleString() %> VND</div></div>
+          <p class="sales-empty-copy">Chưa có dữ liệu sản phẩm trong kỳ này.</p>
+        <% } %>
+      </article>
+
+      <article class="sales-spotlight-card tone-dark">
+        <div class="spotlight-head">
+          <span>Top khách hàng</span>
+          <span class="spotlight-badge">Chi tiêu cao nhất</span>
+        </div>
+        <% if (topCustomers && topCustomers.length) { %>
+          <div class="customer-hero">
+            <div class="customer-avatar"><%= (topCustomers[0].name || 'K').charAt(0).toUpperCase() %></div>
+            <div>
+              <h3><%= topCustomers[0].name %></h3>
+              <p><%= topCustomers[0].email || 'Không có email' %></p>
+            </div>
+          </div>
+          <div class="customer-hero-metrics">
+            <div>
+              <strong><%= (topCustomers[0].total_spent || 0).toLocaleString() %> VND</strong>
+              <span>Tổng chi tiêu</span>
+            </div>
+            <div>
+              <strong><%= topCustomers[0].orders_count || 0 %></strong>
+              <span>Số đơn hàng</span>
+            </div>
+          </div>
+        <% } else { %>
+          <p class="sales-empty-copy">Chưa có dữ liệu khách hàng trong kỳ này.</p>
+        <% } %>
+      </article>
+    </section>
+
+    <section class="sales-chart-grid">
+      <article class="sales-panel chart-panel-wide">
+        <div class="panel-head">
+          <div>
+            <h3>Biểu đồ doanh thu và số đơn</h3>
+            <p>So sánh xu hướng doanh thu với nhịp phát sinh đơn hàng trong kỳ.</p>
+          </div>
+        </div>
+        <div class="chart-wrap large-chart">
+          <canvas id="salesRevenueChart" aria-label="Biểu đồ doanh thu"></canvas>
+        </div>
+      </article>
+
+      <article class="sales-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Top 5 sản phẩm</h3>
+            <p>So sánh doanh thu giữa các sản phẩm bán mạnh nhất.</p>
+          </div>
+        </div>
+        <div class="chart-wrap compact-chart">
+          <canvas id="salesProductChart" aria-label="Biểu đồ top sản phẩm"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="sales-detail-grid">
+      <article class="sales-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Sản phẩm bán nhiều nhất</h3>
+            <p>Danh sách xếp hạng theo số lượng bán ra.</p>
+          </div>
+        </div>
+        <% if (!rows || rows.length === 0) { %>
+          <p class="sales-empty-copy">Chưa có dữ liệu bán hàng.</p>
+        <% } else { %>
+          <div class="sales-ranking-list">
+            <% rows.slice(0, 8).forEach(function(r, index){ %>
+              <a href="/admin/edit/<%= r.product_id %>" class="sales-ranking-card">
+                <span class="rank-index">#<%= index + 1 %></span>
+                <img src="<%= r.safeImage %>" alt="<%= r.title %>" />
+                <div class="rank-main">
+                  <strong><%= r.title %></strong>
+                  <span><%= r.total_qty %> lượt mua</span>
                 </div>
+                <div class="rank-metric"><%= (r.revenue || 0).toLocaleString() %> VND</div>
               </a>
             <% }) %>
           </div>
         <% } %>
-      </div>
+      </article>
 
-      <div id="sales-products" class="sales-right">
-      <% if (!rows || rows.length === 0) { %>
-        <div class="card" style="padding:18px">Chưa có dữ liệu bán hàng.</div>
-      <% } else { %>
-        <% rows.forEach(r=>{ %>
-          <div class="card">
-            <div class="image-wrap"><img loading="lazy" src="<%= r.safeImage %>" alt=""/></div>
-            <div class="info">
-              <h3 class="card-title"><%= r.title %></h3>
-              <div class="text-muted" style="margin-bottom:6px"><%= r.total_qty %> lượt mua</div>
-              <div style="font-weight:600;color:var(--accent);">Doanh thu: <%= (r.revenue || 0).toLocaleString() %> VND</div>
-            </div>
+      <article class="sales-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Khách hàng mua nhiều nhất</h3>
+            <p>Xếp hạng theo tổng chi tiêu và số đơn.</p>
           </div>
-        <% }) %>
-      <% } %>
-      </div>
-    </div>
-    </div>
-    <!-- Biểu đồ đã bị gỡ theo yêu cầu -->
-    <script>
-      // tabs: toggle between best-sellers and history
-      (function(){
-        const tabB = document.getElementById('tab-bests');
-        const tabH = document.getElementById('tab-history');
-        const historyEl = document.getElementById('sales-history');
-        const productsEl = document.getElementById('sales-products');
-        if (!tabB || !tabH || !historyEl || !productsEl) return;
-        function showHistory(){
-          historyEl.style.display = '';
-          productsEl.style.display = 'block';
-          tabH.classList.add('active-period');
-          tabB.classList.remove('active-period');
-        }
-        function showBests(){
-          historyEl.style.display = 'none';
-          productsEl.style.display = 'flex';
-          tabB.classList.add('active-period');
-          tabH.classList.remove('active-period');
-        }
-        // initial: show both (keep original behavior) — but if screen narrow, default to bests
-        if (window.innerWidth < 780) showBests();
-        tabB.addEventListener('click', showBests);
-        tabH.addEventListener('click', showHistory);
-      })();
-    </script>
+        </div>
+        <% if (!topCustomers || topCustomers.length === 0) { %>
+          <p class="sales-empty-copy">Chưa có dữ liệu khách hàng.</p>
+        <% } else { %>
+          <div class="customer-ranking-list">
+            <% topCustomers.forEach(function(customer, index){ %>
+              <div class="customer-ranking-card">
+                <div class="customer-rank"><%= index + 1 %></div>
+                <div class="customer-meta">
+                  <strong><%= customer.name %></strong>
+                  <span><%= customer.email || 'Không có email' %></span>
+                </div>
+                <div class="customer-stats">
+                  <strong><%= (customer.total_spent || 0).toLocaleString() %> VND</strong>
+                  <span><%= customer.orders_count %> đơn</span>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </article>
+
+      <article class="sales-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Ngày có doanh thu gần nhất</h3>
+            <p>Truy cập nhanh để xem chi tiết doanh thu theo ngày.</p>
+          </div>
+        </div>
+        <% if (!latestDays || latestDays.length === 0) { %>
+          <p class="sales-empty-copy">Chưa có lịch sử doanh thu.</p>
+        <% } else { %>
+          <div class="sales-day-stack">
+            <% latestDays.forEach(function(dayItem){ %>
+              <a href="/admin/sales/day/<%= dayItem.day %>?period=<%= period %>" class="sales-day-card">
+                <div>
+                  <strong><%= dayItem.day %></strong>
+                  <span><%= dayItem.orders %> đơn hàng</span>
+                </div>
+                <div class="day-card-revenue"><%= (dayItem.revenue || 0).toLocaleString() %> VND</div>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      </article>
+    </section>
   </div>
 </div>
+
+<script>
+  (function () {
+    const revenueChart = document.getElementById('salesRevenueChart');
+    const productChart = document.getElementById('salesProductChart');
+    const labels = <%- JSON.stringify(chartDays || []) %>;
+    const revenueSeries = <%- JSON.stringify(chartRevenue || []) %>;
+    const orderSeries = <%- JSON.stringify(chartOrders || []) %>;
+    const productSeries = <%- JSON.stringify(topProductChart || []) %>;
+
+    function formatMoney(value) {
+      return Number(value || 0).toLocaleString('vi-VN') + ' VND';
+    }
+
+    function drawAxes(ctx, width, height, padding) {
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, height - padding.bottom);
+      ctx.lineTo(width - padding.right, height - padding.bottom);
+      ctx.stroke();
+    }
+
+    function drawRevenueChart(canvas, days, revenues, orders) {
+      if (!canvas || !days.length) return;
+      const ctx = canvas.getContext('2d');
+      const ratio = window.devicePixelRatio || 1;
+      const cssWidth = canvas.parentElement.clientWidth;
+      const cssHeight = 320;
+      canvas.width = cssWidth * ratio;
+      canvas.height = cssHeight * ratio;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const padding = { top: 20, right: 24, bottom: 42, left: 56 };
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      drawAxes(ctx, cssWidth, cssHeight, padding);
+
+      const maxRevenue = Math.max.apply(null, revenues.concat([1]));
+      const maxOrders = Math.max.apply(null, orders.concat([1]));
+      const stepX = days.length > 1 ? (cssWidth - padding.left - padding.right) / (days.length - 1) : 0;
+
+      ctx.font = '12px Segoe UI';
+      ctx.fillStyle = '#64748b';
+      days.forEach(function (day, index) {
+        const x = padding.left + (stepX * index);
+        ctx.fillText(day.slice(5), x - 16, cssHeight - 14);
+      });
+
+      for (let i = 0; i < 4; i += 1) {
+        const y = padding.top + ((cssHeight - padding.top - padding.bottom) / 3) * i;
+        ctx.strokeStyle = 'rgba(226, 232, 240, 0.8)';
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(cssWidth - padding.right, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#1d4ed8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      revenues.forEach(function (value, index) {
+        const x = padding.left + (stepX * index);
+        const y = cssHeight - padding.bottom - ((value / maxRevenue) * (cssHeight - padding.top - padding.bottom));
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      ctx.fillStyle = '#1d4ed8';
+      revenues.forEach(function (value, index) {
+        const x = padding.left + (stepX * index);
+        const y = cssHeight - padding.bottom - ((value / maxRevenue) * (cssHeight - padding.top - padding.bottom));
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      orders.forEach(function (value, index) {
+        const x = padding.left + (stepX * index);
+        const y = cssHeight - padding.bottom - ((value / maxOrders) * (cssHeight - padding.top - padding.bottom));
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillText('Doanh thu', padding.left, 14);
+      ctx.fillStyle = '#f97316';
+      ctx.fillText('Số đơn', padding.left + 86, 14);
+    }
+
+    function drawProductChart(canvas, items) {
+      if (!canvas || !items.length) return;
+      const ctx = canvas.getContext('2d');
+      const ratio = window.devicePixelRatio || 1;
+      const cssWidth = canvas.parentElement.clientWidth;
+      const cssHeight = 300;
+      canvas.width = cssWidth * ratio;
+      canvas.height = cssHeight * ratio;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const maxRevenue = Math.max.apply(null, items.map(function (item) { return item.revenue; }).concat([1]));
+      const barHeight = 34;
+      const gap = 16;
+
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+      ctx.font = '12px Segoe UI';
+
+      items.forEach(function (item, index) {
+        const y = 20 + index * (barHeight + gap);
+        const trackWidth = cssWidth - 138;
+        const barWidth = (trackWidth * item.revenue) / maxRevenue;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(104, y, trackWidth, barHeight);
+        ctx.fillStyle = '#0f766e';
+        ctx.fillRect(104, y, barWidth, barHeight);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText((item.title || '').slice(0, 14), 0, y + 21);
+        ctx.fillStyle = '#334155';
+        ctx.fillText(formatMoney(item.revenue), 112, y + 21);
+      });
+    }
+
+    function renderCharts() {
+      drawRevenueChart(revenueChart, labels, revenueSeries, orderSeries);
+      drawProductChart(productChart, productSeries);
+    }
+
+    renderCharts();
+    window.addEventListener('resize', renderCharts);
+  })();
+</script>

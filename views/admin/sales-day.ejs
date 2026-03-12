@@ -1,74 +1,173 @@
 <div class="admin-wrap">
   <aside class="admin-sidebar">
-    <a href="/admin">Sản phẩm</a>
-    <a href="/admin/new">Tạo sản phẩm mới</a>
-    <a href="/admin/orders">Đơn hàng</a>
-    <a href="/admin/sales" class="active">Doanh thu</a>
+    <a href="/admin" class="nav-item <%= (activeAdmin==='products') ? 'active' : '' %>">
+      <span class="icon">📦</span>
+      <span class="label">Sản phẩm</span>
+    </a>
+    <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>">
+      <span class="icon">✨</span>
+      <span class="label">Tạo sản phẩm mới</span>
+    </a>
+    <a href="/admin/orders" class="nav-item <%= (activeAdmin==='orders') ? 'active' : '' %>">
+      <span class="icon">🛒</span>
+      <span class="label">Đơn hàng</span>
+    </a>
+    <a href="/admin/discounts" class="nav-item <%= (activeAdmin==='discounts') ? 'active' : '' %>">
+      <span class="icon">🏷️</span>
+      <span class="label">Mã giảm giá</span>
+    </a>
+    <a href="/admin/sales" class="nav-item <%= (activeAdmin==='sales') ? 'active' : '' %>">
+      <span class="icon">📈</span>
+      <span class="label">Doanh thu</span>
+    </a>
   </aside>
-  <div class="admin-main">
-    <h2>Chi tiết doanh thu: <%= day %></h2>
-    <p>Tổng đơn: <strong><%= totalOrders %></strong> — Tổng doanh thu: <strong style="color:var(--accent)"><%= (totalRevenue||0).toLocaleString() %> VND</strong></p>
 
-    <div class="sales-grid" style="margin-top:12px">
-      <div class="sales-left">
-        <h4>Sản phẩm bán theo ngày</h4>
+  <div class="admin-main sales-dashboard day-dashboard">
+    <section class="sales-hero-card compact-hero">
+      <div>
+        <p class="sales-eyebrow">Chi tiết theo ngày</p>
+        <h1>Doanh thu ngày <%= day %></h1>
+        <p class="sales-hero-copy">Xem nhanh đơn hàng, sản phẩm chủ lực và nhóm khách hàng nổi bật trong ngày này.</p>
+      </div>
+      <div class="sales-toolbar">
+        <a href="/admin/sales?period=<%= period %>" class="sales-export-link">Quay lại báo cáo</a>
+        <a href="/admin/sales/day/<%= day %>/export" class="sales-export-link">Export CSV</a>
+      </div>
+    </section>
+
+    <section class="sales-kpi-grid day-kpis">
+      <article class="sales-kpi-card accent-revenue">
+        <span class="kpi-label">Doanh thu ngày</span>
+        <strong><%= (totalRevenue || 0).toLocaleString() %> VND</strong>
+        <small>Tổng tiền từ đơn hợp lệ</small>
+      </article>
+      <article class="sales-kpi-card accent-orders">
+        <span class="kpi-label">Tổng đơn</span>
+        <strong><%= totalOrders || 0 %></strong>
+        <small>Đơn hàng phát sinh trong ngày</small>
+      </article>
+      <article class="sales-kpi-card accent-customers">
+        <span class="kpi-label">Sản phẩm đã bán</span>
+        <strong><%= totalUnitsSold || 0 %></strong>
+        <small>Tổng số lượng sản phẩm</small>
+      </article>
+      <article class="sales-kpi-card accent-aov">
+        <span class="kpi-label">Sản phẩm top 1</span>
+        <strong><%= topProduct ? topProduct.title : 'Chưa có' %></strong>
+        <small><%= topProduct ? (topProduct.total_qty + ' lượt mua') : 'Không có dữ liệu' %></small>
+      </article>
+    </section>
+
+    <section class="sales-detail-grid day-detail-grid">
+      <article class="sales-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Sản phẩm bán chạy trong ngày</h3>
+            <p>Nhóm sản phẩm mang về doanh thu tốt nhất trong ngày đã chọn.</p>
+          </div>
+        </div>
         <% if (!products || products.length === 0) { %>
-          <div class="card" style="padding:12px">Không có sản phẩm nào bán trong ngày này.</div>
+          <p class="sales-empty-copy">Không có sản phẩm nào bán trong ngày này.</p>
         <% } else { %>
-          <div class="day-list">
-            <% products.forEach(p=>{ %>
-              <div class="day-card">
-                <div style="display:flex;gap:12px;align-items:center">
-                  <img src="<%= p.safeImage %>" style="width:72px;height:72px;object-fit:cover;border-radius:6px" />
-                  <div>
-                    <div style="font-weight:700"><%= p.title %></div>
-                    <div class="text-muted"><%= p.total_qty %> lượt mua</div>
-                  </div>
+          <div class="sales-ranking-list day-products-list">
+            <% products.forEach(function(product, index){ %>
+              <div class="sales-ranking-card">
+                <span class="rank-index">#<%= index + 1 %></span>
+                <img src="<%= product.safeImage %>" alt="<%= product.title %>" />
+                <div class="rank-main">
+                  <strong><%= product.title %></strong>
+                  <span><%= product.total_qty %> lượt mua</span>
                 </div>
-                <div style="text-align:right"><div style="font-weight:700;color:var(--accent)"><%= (p.revenue||0).toLocaleString() %> VND</div></div>
+                <div class="rank-metric"><%= (product.revenue || 0).toLocaleString() %> VND</div>
               </div>
             <% }) %>
           </div>
         <% } %>
-      </div>
+      </article>
 
-      <div class="sales-right">
-        <h4>Danh sách đơn hàng trong ngày</h4>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <% if (!orders || orders.length === 0) { %>
-            <div class="card" style="padding:12px">Không có đơn hàng trong ngày này.</div>
-          <% } else { %>
-            <% orders.forEach(o=>{ %>
-              <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:12px;">
-                <div>
-                  <div style="font-weight:700">Đơn #<%= o.id %> — <span class="text-muted" style="font-weight:600">Trạng thái: <%= o.status %></span></div>
-                  <div class="text-muted">Thời gian: <%= o.created_at %></div>
+      <article class="sales-panel">
+        <div class="panel-head">
+          <div>
+            <h3>Khách hàng nổi bật trong ngày</h3>
+            <p>Người mua nhiều nhất theo tổng chi tiêu trong ngày.</p>
+          </div>
+        </div>
+        <% if (!topCustomers || topCustomers.length === 0) { %>
+          <p class="sales-empty-copy">Không có dữ liệu khách hàng cho ngày này.</p>
+        <% } else { %>
+          <div class="customer-ranking-list">
+            <% topCustomers.forEach(function(customer, index){ %>
+              <div class="customer-ranking-card">
+                <div class="customer-rank"><%= index + 1 %></div>
+                <div class="customer-meta">
+                  <strong><%= customer.name %></strong>
+                  <span><%= customer.email || 'Không có email' %></span>
                 </div>
-                <div style="text-align:right">
-                  <div style="font-weight:700;color:var(--accent)"><%= (o.total||0).toLocaleString() %> VND</div>
-                  <div style="margin-top:6px"><a class="link-btn" href="/admin/orders/<%= o.id %>">Xem chi tiết</a></div>
+                <div class="customer-stats">
+                  <strong><%= (customer.total_spent || 0).toLocaleString() %> VND</strong>
+                  <span><%= customer.orders_count %> đơn</span>
                 </div>
               </div>
             <% }) %>
-          <% } %>
-        </div>
+          </div>
+        <% } %>
+      </article>
+    </section>
 
-        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:space-between">
-          <div>
-            <% if (page && page > 1) { %>
-              <a class="link-btn" href="/admin/sales/day/<%= day %>?page=<%= page-1 %>&period=<%= period %>">« Trước</a>
-            <% } %>
-            <% if (page && totalPages && page < totalPages) { %>
-              <a class="link-btn" href="/admin/sales/day/<%= day %>?page=<%= page+1 %>&period=<%= period %>">Sau »</a>
-            <% } %>
-          </div>
-          <div>
-            <a class="link-btn" href="/admin/sales/day/<%= day %>/export">Export CSV</a>
-          </div>
+    <section class="sales-panel order-table-panel">
+      <div class="panel-head">
+        <div>
+          <h3>Danh sách đơn hàng trong ngày</h3>
+          <p>Theo dõi từng đơn hàng, khách hàng và giá trị thanh toán.</p>
         </div>
       </div>
-    </div>
+      <% if (!orders || orders.length === 0) { %>
+        <p class="sales-empty-copy">Không có đơn hàng nào trong ngày này.</p>
+      <% } else { %>
+        <div class="sales-order-table-wrap">
+          <table class="sales-order-table">
+            <thead>
+              <tr>
+                <th>Mã đơn</th>
+                <th>Khách hàng</th>
+                <th>Trạng thái</th>
+                <th>Thời gian</th>
+                <th>Tổng tiền</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% orders.forEach(function(order){ %>
+                <tr>
+                  <td><strong>#<%= order.id %></strong></td>
+                  <td>
+                    <div class="order-customer-cell">
+                      <strong><%= order.customer_name || 'Khách hàng' %></strong>
+                      <span><%= order.customer_email || 'Không có email' %></span>
+                    </div>
+                  </td>
+                  <td><span class="sales-status-chip <%= order.status %>"><%= order.status %></span></td>
+                  <td><%= order.created_at %></td>
+                  <td><strong><%= (order.total || 0).toLocaleString() %> VND</strong></td>
+                  <td><a class="sales-inline-link" href="/admin/orders/<%= order.id %>">Xem chi tiết</a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
 
-    <div style="margin-top:16px"><a href="/admin/sales?period=<%= period %>" class="link-btn">Quay lại báo cáo</a></div>
+      <div class="sales-pagination-row">
+        <div>
+          <% if (page && page > 1) { %>
+            <a class="sales-inline-link" href="/admin/sales/day/<%= day %>?page=<%= page-1 %>&period=<%= period %>">Trang trước</a>
+          <% } %>
+          <% if (page && totalPages && page < totalPages) { %>
+            <a class="sales-inline-link" href="/admin/sales/day/<%= day %>?page=<%= page+1 %>&period=<%= period %>">Trang sau</a>
+          <% } %>
+        </div>
+        <span>Trang <%= page %> / <%= totalPages %></span>
+      </div>
+    </section>
   </div>
 </div>

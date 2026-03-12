@@ -4,6 +4,21 @@
     <div class="order-status-badge <%= order.status %>">Trạng thái: <strong><%= order.status %></strong></div>
   </header>
 
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="cart-alert cart-alert-warning order-edit-alert"><%= error %></div>
+  <% } %>
+
+  <div
+    id="order-edit-preview"
+    class="cart-alert cart-alert-warning order-edit-alert"
+    data-current-total="<%= parseInt(order.total, 10) || 0 %>"
+    data-current-discount="<%= parseInt(order.discount_amount, 10) || 0 %>"
+    data-discount-product-id="<%= activeDiscount ? activeDiscount.product_id : '' %>"
+    data-discount-valid="<%= activeDiscount ? 'true' : 'false' %>"
+  >
+    Tổng hiện tại của đơn là <strong><%= (parseInt(order.total, 10) || 0).toLocaleString() %> VND</strong>. Nếu bạn tăng hoặc giảm số lượng, hệ thống sẽ tự tính phần cần thanh toán thêm hoặc hoàn lại.
+  </div>
+
   <form method="post" action="/order/<%= order.id %>/update" class="order-edit-form">
     <div class="order-edit-left">
       <label class="form-label">Người nhận
@@ -31,15 +46,92 @@
     </div>
 
     <aside class="order-edit-right">
-      <h4>Danh sách sản phẩm</h4>
+      <div class="order-edit-section-head">
+        <h4>Danh sách sản phẩm</h4>
+        <p>Điều chỉnh size và số lượng trước khi đơn được giao.</p>
+      </div>
       <ul class="order-items-list">
         <% items.forEach(function(i){ %>
           <li class="order-item">
-            <div class="item-title"><%= i.title %> <% if(i.option){ %> <small class="muted">— Size: <%= i.option %></small> <% } %></div>
-            <div class="item-qty">x <%= i.quantity %></div>
+            <div class="order-item-body">
+              <div class="item-title"><%= i.title %></div>
+              <div class="order-item-note">Bạn có thể đổi size hoặc tăng giảm số lượng trước khi đơn được giao.</div>
+              <input type="hidden" name="itemId" value="<%= i.id %>" />
+              <div class="order-item-fields">
+                <label class="form-label compact-label">Size
+                  <select name="option">
+                    <option value="S" <%= i.option === 'S' ? 'selected' : '' %>>S</option>
+                    <option value="M" <%= i.option === 'M' ? 'selected' : '' %>>M</option>
+                    <option value="L" <%= i.option === 'L' ? 'selected' : '' %>>L</option>
+                    <option value="XL" <%= i.option === 'XL' ? 'selected' : '' %>>XL</option>
+                  </select>
+                </label>
+                <label class="form-label compact-label">Số lượng
+                  <input name="qty" type="number" min="1" max="<%= i.editableStock || i.quantity %>" value="<%= i.quantity %>" required data-unit-price="<%= parseInt(i.price, 10) || 0 %>" data-original-qty="<%= parseInt(i.quantity, 10) || 0 %>" data-product-id="<%= i.product_id %>" />
+                </label>
+              </div>
+              <div class="order-item-stock">Tối đa có thể chỉnh: <strong><%= i.editableStock || i.quantity %></strong> sản phẩm.</div>
+            </div>
           </li>
         <% }) %>
       </ul>
     </aside>
   </form>
 </div>
+
+<script>
+  (function () {
+    const preview = document.getElementById('order-edit-preview');
+    if (!preview) return;
+
+    const quantityInputs = Array.from(document.querySelectorAll('input[name="qty"]'));
+    if (!quantityInputs.length) return;
+
+    const currentTotal = Number(preview.dataset.currentTotal || 0);
+    const currentDiscount = Number(preview.dataset.currentDiscount || 0);
+    const discountProductId = String(preview.dataset.discountProductId || '');
+    const discountValid = preview.dataset.discountValid === 'true';
+
+    function formatMoney(amount) {
+      return Number(amount || 0).toLocaleString('vi-VN') + ' VND';
+    }
+
+    function updatePreview() {
+      let nextSubtotal = 0;
+      let eligibleSubtotal = 0;
+
+      quantityInputs.forEach((input) => {
+        const qty = Math.max(1, Number(input.value || input.getAttribute('min') || 1));
+        const unitPrice = Number(input.dataset.unitPrice || 0);
+        const productId = String(input.dataset.productId || '');
+        nextSubtotal += qty * unitPrice;
+        if (discountProductId && productId === discountProductId) eligibleSubtotal += qty * unitPrice;
+      });
+
+      const nextDiscount = discountValid
+        ? Math.min(currentDiscount, eligibleSubtotal, nextSubtotal)
+        : Math.min(currentDiscount, nextSubtotal);
+      const nextTotal = nextSubtotal - Math.max(0, nextDiscount || 0);
+      const diff = nextTotal - currentTotal;
+
+      if (diff > 0) {
+        preview.innerHTML = 'Số lượng hàng đã tăng. Bạn cần thanh toán thêm <strong>' + formatMoney(diff) + '</strong>. Tổng mới dự kiến là <strong>' + formatMoney(nextTotal) + '</strong>.';
+        return;
+      }
+
+      if (diff < 0) {
+        preview.innerHTML = 'Số lượng hàng đã giảm. Bạn sẽ được hoàn <strong>' + formatMoney(Math.abs(diff)) + '</strong> về tài khoản. Tổng mới dự kiến là <strong>' + formatMoney(nextTotal) + '</strong>.';
+        return;
+      }
+
+      preview.innerHTML = 'Tổng hiện tại của đơn là <strong>' + formatMoney(currentTotal) + '</strong>. Nếu bạn tăng hoặc giảm số lượng, hệ thống sẽ tự tính phần cần thanh toán thêm hoặc hoàn lại.';
+    }
+
+    quantityInputs.forEach((input) => {
+      input.addEventListener('input', updatePreview);
+      input.addEventListener('change', updatePreview);
+    });
+
+    updatePreview();
+  })();
+</script>

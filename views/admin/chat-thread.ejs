@@ -1,15 +1,33 @@
-<h2>Chat với <%= user.name %> — <%= user.email %></h2>
-<div class="chat-box admin">
-  <div class="messages">
-    <% messages.forEach(m=>{ %>
-      <div class="msg <%= m.sender === 'admin' ? 'from-admin' : 'from-user' %>">
-        <div class="meta"><strong><%= m.sender %></strong> — <small><%= m.created_at %></small></div>
-        <div class="content"><%= m.content %></div>
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <a href="/admin" class="nav-item <%= (activeAdmin==='products') ? 'active' : '' %>"><span class="icon">📦</span><span class="label">Sản phẩm</span></a>
+    <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>"><span class="icon">✨</span><span class="label">Tạo sản phẩm mới</span></a>
+    <a href="/admin/orders" class="nav-item <%= (activeAdmin==='orders') ? 'active' : '' %>"><span class="icon">🛒</span><span class="label">Đơn hàng</span></a>
+    <a href="/admin/discounts" class="nav-item <%= (activeAdmin==='discounts') ? 'active' : '' %>"><span class="icon">🏷️</span><span class="label">Mã giảm giá</span></a>
+    <a href="/admin/chats" class="nav-item <%= (activeAdmin==='chats') ? 'active' : '' %>"><span class="icon">💬</span><span class="label">Tin nhắn</span></a>
+    <a href="/admin/sales" class="nav-item <%= (activeAdmin==='sales') ? 'active' : '' %>"><span class="icon">📈</span><span class="label">Doanh thu</span></a>
+  </aside>
+  <div class="admin-main">
+    <h2>Chat với <%= user.name %> — <%= user.email %></h2>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div style="margin-bottom:12px;padding:12px 14px;border-radius:12px;border:1px solid rgba(180,35,24,0.16);background:#fff5f4;color:#b42318"><%= error %></div>
+    <% } %>
+    <div class="chat-box admin">
+      <div class="messages">
+        <% messages.forEach(m=>{ %>
+          <div class="msg <%= m.sender === 'admin' ? 'from-admin' : 'from-user' %>">
+            <div class="meta"><strong><%= m.sender === 'admin' ? 'Admin' : user.name %></strong> — <small><%= m.created_at %></small></div>
+            <div class="content"><%= m.content %></div>
+          </div>
+        <% }) %>
       </div>
-    <% }) %>
+      <form method="post" action="/admin/chat/<%= user.id %>">
+        <textarea name="message" rows="3" style="width:100%;padding:8px" placeholder="Nhập nội dung phản hồi..." required></textarea>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <button class="btn" type="submit">Gửi trả lời</button>
+          <a href="/admin/chats" class="btn-ghost">Quay lại hộp thư</a>
+        </div>
+      </form>
+    </div>
   </div>
-  <form method="post" action="/admin/chat/<%= user.id %>">
-    <textarea name="message" rows="3" style="width:100%;padding:8px"></textarea>
-    <div style="margin-top:8px"><button class="btn" type="submit">Gửi trả lời</button></div>
-  </form>
 </div>

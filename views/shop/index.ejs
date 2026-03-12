@@ -1,5 +1,14 @@
 <% var categoriesSafe = (typeof categories !== 'undefined' && categories) ? categories : []; var activeSafe = (typeof activeCategory !== 'undefined') ? activeCategory : null; %>
-<h2>Sản phẩm</h2>
+<section class="shop-intro">
+  <p class="shop-eyebrow">Q &amp; N Selection</p>
+  <div class="shop-intro-row">
+    <div class="shop-intro-copy">
+      <h2>Sản phẩm nổi bật</h2>
+      <p>Những mẫu quần áo được chọn theo tinh thần tối giản, dễ mặc hằng ngày và đủ lịch sự để lên outfit gọn gàng, chuyên nghiệp.</p>
+    </div>
+    <div class="shop-intro-note">Cập nhật liên tục các mẫu mới, form dễ mặc và tông màu dễ phối.</div>
+  </div>
+</section>
 <% if (!hideHero) { %>
   <%- include('../partials/hero') %>
 <% } %>
@@ -12,7 +21,7 @@
     <a href="/?category=<%= encodeURIComponent(c) %>" class="cat <%= activeSafe===c ? 'active' : '' %>"><%= c %></a>
   <% }) %>
 </nav>
-<div class="products">
+<div class="products" id="product-grid">
   <% products.forEach(p=>{ %>
     <div class="product card" data-id="<%= p.id %>">
   <div class="image-wrap">
@@ -24,7 +33,7 @@
         <div class="meta">
           <span class="price"><%= (p.price).toLocaleString() %> VND</span>
           <span class="badge"><%= p.category %></span>
-          <span class="badge"><%= p.stock > 0 ? ('Con ' + p.stock) : 'Het hang' %></span>
+          <span class="badge"><%= p.stock > 0 ? ('Còn ' + p.stock) : 'Hết hàng' %></span>
         </div>
         <form method="post" action="/cart/add" class="add-form"<% if (!currentUser) { %> data-auth-required="true"<% } %>>
           <input type="hidden" name="productId" value="<%= p.id %>" />

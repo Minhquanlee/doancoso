@@ -23,14 +23,13 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER) {
 
 const app = express();
 const PORT = process.env.PORT || 5600;
-const ASSET_VERSION = '20260309-1';
+const SESSION_COOKIE_NAME = 'connect.sid';
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layouts/main');
 app.use(express.static(path.join(__dirname, 'public')));
-app.use((req,res,next)=>{ res.locals.assetVersion = ASSET_VERSION; next(); });
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
@@ -71,6 +70,7 @@ app.use(session({
   secret: 'change-me-please',
   resave: false,
   saveUninitialized: false,
+  name: SESSION_COOKIE_NAME,
   cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 
@@ -116,6 +116,25 @@ function initDb() {
         price INTEGER,
         option TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS discount_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE,
+      product_id INTEGER NOT NULL,
+      discount_amount INTEGER NOT NULL,
+      usage_limit INTEGER NOT NULL DEFAULT 1,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      sender TEXT NOT NULL,
+      content TEXT NOT NULL,
+      is_read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
   // simple migration: add 'category' column if missing (for older DBs)
   try {
@@ -141,6 +160,26 @@ function initDb() {
     if (!hasAddressId) {
       try { db.prepare("ALTER TABLE orders ADD COLUMN address_id INTEGER").run(); console.log('Migration: added orders.address_id column'); } catch(e){}
     }
+    const hasSubtotal = orderCols.some(c => c.name === 'subtotal');
+    if (!hasSubtotal) {
+      try { db.prepare("ALTER TABLE orders ADD COLUMN subtotal INTEGER").run(); console.log('Migration: added orders.subtotal column'); } catch(e){}
+    }
+    const hasDiscountAmount = orderCols.some(c => c.name === 'discount_amount');
+    if (!hasDiscountAmount) {
+      try { db.prepare("ALTER TABLE orders ADD COLUMN discount_amount INTEGER DEFAULT 0").run(); console.log('Migration: added orders.discount_amount column'); } catch(e){}
+    }
+    const hasDiscountCode = orderCols.some(c => c.name === 'discount_code');
+    if (!hasDiscountCode) {
+      try { db.prepare("ALTER TABLE orders ADD COLUMN discount_code TEXT").run(); console.log('Migration: added orders.discount_code column'); } catch(e){}
+    }
+    const discountCols = db.prepare("PRAGMA table_info('discount_codes')").all();
+    const hasUsageLimit = discountCols.some(c => c.name === 'usage_limit');
+    if (!hasUsageLimit) {
+      try { db.prepare("ALTER TABLE discount_codes ADD COLUMN usage_limit INTEGER DEFAULT 1").run(); console.log('Migration: added discount_codes.usage_limit column'); } catch(e){}
+    }
+    try { db.prepare('UPDATE orders SET subtotal = total WHERE subtotal IS NULL').run(); } catch(e){}
+    try { db.prepare('UPDATE orders SET discount_amount = 0 WHERE discount_amount IS NULL').run(); } catch(e){}
+    try { db.prepare('UPDATE discount_codes SET usage_limit = 1 WHERE usage_limit IS NULL OR usage_limit < 1').run(); } catch(e){}
   } catch (e) {
     console.warn('Migration check failed', e.message);
   }
@@ -220,10 +259,18 @@ try {
   `);
 } catch(e){ console.error('carts table create failed', e.message); }
 
+try {
+  db.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created ON chat_messages(user_id, created_at)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_chat_messages_unread ON chat_messages(user_id, sender, is_read)');
+} catch(e){ console.error('chat_messages index create failed', e.message); }
+
 // middleware to expose user to views
 // middleware to expose user to views (refresh avatar/name from DB when logged in)
 app.use((req,res,next)=>{
   res.locals.stripePublishable = process.env.STRIPE_PUBLISHABLE_KEY || null;
+  res.locals.flashNotice = req.session && req.session.flashNotice ? req.session.flashNotice : null;
+  res.locals.chatUnreadCount = 0;
+  if (req.session && req.session.flashNotice) delete req.session.flashNotice;
   if (req.session.user && req.session.user.id) {
     try {
       const u = db.prepare('SELECT id,name,email,role,avatar FROM users WHERE id = ?').get(req.session.user.id);
@@ -233,6 +280,13 @@ app.use((req,res,next)=>{
         req.session.user.role = u.role;
         req.session.user.avatar = u.avatar;
         res.locals.currentUser = req.session.user;
+        if (u.role === 'admin') {
+          const unread = db.prepare("SELECT COUNT(*) AS c FROM chat_messages WHERE sender = 'user' AND is_read = 0").get();
+          res.locals.chatUnreadCount = unread ? (unread.c || 0) : 0;
+        } else {
+          const unread = db.prepare("SELECT COUNT(*) AS c FROM chat_messages WHERE user_id = ? AND sender = 'admin' AND is_read = 0").get(u.id);
+          res.locals.chatUnreadCount = unread ? (unread.c || 0) : 0;
+        }
       } else {
         res.locals.currentUser = req.session.user;
       }
@@ -440,6 +494,232 @@ function loadCartItems(cartObj) {
   return { items, total };
 }
 
+function getItemUnitPrice(item) {
+  if (!item) return 0;
+  if (typeof item.price === 'number') return item.price;
+  if (item.product && typeof item.product.price === 'number') return item.product.price;
+  return parseInt(item.price || (item.product && item.product.price) || 0, 10) || 0;
+}
+
+function normalizeDiscountCode(rawCode) {
+  return typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : '';
+}
+
+function getDiscountCodeRecord(rawCode) {
+  const code = normalizeDiscountCode(rawCode);
+  if (!code) return null;
+
+  return db.prepare(`
+    SELECT dc.*, p.title AS product_title
+    FROM discount_codes dc
+    LEFT JOIN products p ON p.id = dc.product_id
+    WHERE upper(dc.code) = ? AND dc.is_active = 1
+  `).get(code);
+}
+
+function getDiscountCodeUsageStats(rawCode, userId) {
+  const code = normalizeDiscountCode(rawCode);
+  if (!code) return { totalUsed: 0, userHasUsed: false };
+
+  const totalRow = db.prepare('SELECT COUNT(DISTINCT user_id) AS totalUsed FROM orders WHERE upper(discount_code) = ?').get(code);
+  const userRow = userId
+    ? db.prepare('SELECT 1 AS used FROM orders WHERE upper(discount_code) = ? AND user_id = ? LIMIT 1').get(code, userId)
+    : null;
+
+  return {
+    totalUsed: parseInt(totalRow && totalRow.totalUsed, 10) || 0,
+    userHasUsed: !!(userRow && userRow.used)
+  };
+}
+
+function buildOrderPricing(items, rawDiscountCode, userId) {
+  const subtotal = (items || []).reduce((sum, item) => sum + (getItemUnitPrice(item) * (item.quantity || 0)), 0);
+  const inputCode = normalizeDiscountCode(rawDiscountCode);
+  const pricing = {
+    inputCode,
+    subtotal,
+    discountAmount: 0,
+    total: subtotal,
+    appliedDiscount: null,
+    error: null
+  };
+
+  if (!inputCode) return pricing;
+
+  const discount = getDiscountCodeRecord(inputCode);
+  if (!discount) {
+    pricing.error = 'Mã giảm giá không hợp lệ hoặc đã bị tắt.';
+    return pricing;
+  }
+
+  const usageLimit = Math.max(1, parseInt(discount.usage_limit, 10) || 1);
+  const usageStats = getDiscountCodeUsageStats(inputCode, userId);
+  pricing.totalUsed = usageStats.totalUsed;
+  pricing.remainingUses = Math.max(0, usageLimit - usageStats.totalUsed);
+
+  if (usageStats.userHasUsed) {
+    pricing.error = 'Mỗi tài khoản chỉ được sử dụng mã giảm giá này 1 lần.';
+    return pricing;
+  }
+
+  if (usageStats.totalUsed >= usageLimit) {
+    pricing.error = 'Mã giảm giá này đã hết lượt sử dụng.';
+    return pricing;
+  }
+
+  const eligibleItems = (items || []).filter(item => String(item.product.id) === String(discount.product_id));
+  if (!eligibleItems.length) {
+    pricing.error = `Mã ${inputCode} chỉ áp dụng cho sản phẩm ${discount.product_title || 'đã chọn'}.`;
+    return pricing;
+  }
+
+  const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + (getItemUnitPrice(item) * (item.quantity || 0)), 0);
+  const discountAmount = Math.max(0, Math.min(parseInt(discount.discount_amount, 10) || 0, eligibleSubtotal, subtotal));
+  if (!discountAmount) {
+    pricing.error = 'Mã giảm giá không thể áp dụng cho đơn hàng này.';
+    return pricing;
+  }
+
+  pricing.discountAmount = discountAmount;
+  pricing.total = subtotal - discountAmount;
+  pricing.appliedDiscount = Object.assign({}, discount, {
+    usage_limit: usageLimit,
+    total_used: usageStats.totalUsed,
+    remaining_uses: Math.max(0, usageLimit - usageStats.totalUsed)
+  });
+  return pricing;
+}
+
+function buildUpdatedOrderPricing(order, items) {
+  const subtotal = (items || []).reduce((sum, item) => sum + (getItemUnitPrice(item) * (item.quantity || 0)), 0);
+  let discountAmount = 0;
+  let discountCode = null;
+
+  if (order && order.discount_amount > 0 && order.discount_code) {
+    const currentDiscount = getDiscountCodeRecord(order.discount_code);
+    if (currentDiscount) {
+      const eligibleSubtotal = (items || [])
+        .filter(item => String(item.product.id) === String(currentDiscount.product_id))
+        .reduce((sum, item) => sum + (getItemUnitPrice(item) * (item.quantity || 0)), 0);
+      discountAmount = Math.min(order.discount_amount, eligibleSubtotal, subtotal);
+    } else {
+      discountAmount = Math.min(order.discount_amount, subtotal);
+    }
+
+    if (discountAmount > 0) discountCode = order.discount_code;
+  }
+
+  return {
+    subtotal,
+    discountAmount,
+    total: subtotal - discountAmount,
+    discountCode
+  };
+}
+
+function buildCheckoutFormValues(defaultAddress, source) {
+  const input = source || {};
+  return {
+    recipient: input.recipient || (defaultAddress && defaultAddress.recipient) || '',
+    phone: input.phone || (defaultAddress && defaultAddress.phone) || '',
+    street: input.street || (defaultAddress && defaultAddress.street) || '',
+    city: input.city || (defaultAddress && defaultAddress.city) || '',
+    postcode: input.postcode || (defaultAddress && defaultAddress.postcode) || ''
+  };
+}
+
+function clearCheckoutCart(req) {
+  try { delete req.session.checkoutCart; } catch (e) {}
+  try { delete req.session.checkoutDiscountCode; } catch (e) {}
+}
+
+function getCheckoutCartState(req) {
+  const rawCheckoutCart = req.session.checkoutCart || null;
+  if (rawCheckoutCart && typeof rawCheckoutCart === 'object' && Object.keys(rawCheckoutCart).length > 0) {
+    return {
+      source: 'buy-now',
+      normalizedCart: normalizeCartWithInventory(rawCheckoutCart)
+    };
+  }
+
+  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
+  syncCartToSession(req, normalizedCart.cart);
+  return {
+    source: 'cart',
+    normalizedCart
+  };
+}
+
+function getCheckoutViewModel(req, options = {}) {
+  const checkoutState = getCheckoutCartState(req);
+  const normalizedCart = checkoutState.normalizedCart;
+  const { items } = loadCartItems(normalizedCart.cart);
+  const defaultAddress = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
+  const discountCodeInput = Object.prototype.hasOwnProperty.call(options, 'discountCodeInput') ? options.discountCodeInput : req.query.discountCode;
+  const pricing = buildOrderPricing(items, discountCodeInput, req.session.user.id);
+  const inventoryMessage = getInventoryMessage(normalizedCart.adjustments);
+  const formValues = buildCheckoutFormValues(defaultAddress, options.formValues);
+
+  return {
+    items,
+    total: pricing.total,
+    subtotal: pricing.subtotal,
+    defaultAddress,
+    discountSummary: pricing,
+    discountCodeInput: pricing.inputCode,
+    formValues,
+    checkoutSource: checkoutState.source,
+    stripePublishable: process.env.STRIPE_PUBLISHABLE || null,
+    error: options.error || req.query.error || pricing.error || inventoryMessage
+  };
+}
+
+function renderCheckoutPage(req, res, options = {}) {
+  const viewModel = getCheckoutViewModel(req, options);
+  if (!viewModel.items.length) return res.redirect('/cart');
+  return res.render('shop/checkout', viewModel);
+}
+
+function buildOrderConfirmationHtml(orderId, pricing) {
+  const rows = [`<p>Đơn hàng #${orderId}</p>`, `<p>Tạm tính: ${pricing.subtotal.toLocaleString()} VND</p>`];
+  if (pricing.discountAmount > 0 && pricing.appliedDiscount) {
+    rows.push(`<p>Mã giảm giá: ${pricing.appliedDiscount.code} (-${pricing.discountAmount.toLocaleString()} VND)</p>`);
+  }
+  rows.push(`<p>Tổng thanh toán: ${pricing.total.toLocaleString()} VND</p>`);
+  return rows.join('');
+}
+
+function convertVndToStripeUnitAmount(amountVnd) {
+  return Math.max(100, Math.round((Math.max(0, amountVnd) / 1000)) * 100);
+}
+
+function buildStripeLineItems(orderItems, pricing) {
+  let remainingDiscount = pricing && pricing.appliedDiscount ? pricing.discountAmount : 0;
+
+  return (orderItems || []).map(item => {
+    let lineTotal = (item.product.price || 0) * (item.quantity || 0);
+
+    if (remainingDiscount > 0 && pricing.appliedDiscount && String(item.product.id) === String(pricing.appliedDiscount.product_id)) {
+      const lineDiscount = Math.min(remainingDiscount, lineTotal);
+      lineTotal -= lineDiscount;
+      remainingDiscount -= lineDiscount;
+    }
+
+    const averageUnitPrice = Math.max(1, Math.round(lineTotal / Math.max(1, item.quantity || 1)));
+    return {
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: item.product.title + (item.option ? ` (${item.option})` : ''),
+          description: item.product.description
+        },
+        unit_amount: convertVndToStripeUnitAmount(averageUnitPrice)
+      },
+      quantity: item.quantity
+    };
+  });
+}
+
 function reserveStockForItems(items) {
   const tx = db.transaction((orderItems) => {
     for (const item of orderItems) {
@@ -471,10 +751,31 @@ function restoreStockForOrder(orderId) {
   tx(orderId);
 }
 
-function createPaidOrder(userId, items, total, addressId) {
-  const tx = db.transaction((targetUserId, orderItems, orderTotal, targetAddressId) => {
+function createPaidOrder(userId, items, pricingOrTotal, addressId) {
+  const pricing = typeof pricingOrTotal === 'object'
+    ? pricingOrTotal
+    : { subtotal: pricingOrTotal, discountAmount: 0, total: pricingOrTotal, appliedDiscount: null };
+
+  const tx = db.transaction((targetUserId, orderItems, orderPricing, targetAddressId) => {
+    const discountCode = normalizeDiscountCode(orderPricing.inputCode || (orderPricing.appliedDiscount && orderPricing.appliedDiscount.code) || '');
+    const finalPricing = buildOrderPricing(orderItems, discountCode, targetUserId);
+    if (finalPricing.error) {
+      const err = new Error(finalPricing.error);
+      err.code = 'DISCOUNT_INVALID';
+      throw err;
+    }
+
     reserveStockForItems(orderItems);
-    const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id) VALUES (?,?,?,?)').run(targetUserId, orderTotal, 'paid', targetAddressId || null);
+    const info = db.prepare('INSERT INTO orders (user_id,total,status,address_id,subtotal,discount_amount,discount_code) VALUES (?,?,?,?,?,?,?)')
+      .run(
+        targetUserId,
+        finalPricing.total,
+        'paid',
+        targetAddressId || null,
+        finalPricing.subtotal || finalPricing.total,
+        finalPricing.discountAmount || 0,
+        finalPricing.appliedDiscount ? finalPricing.appliedDiscount.code : null
+      );
     const orderId = info.lastInsertRowid;
     const insertItem = db.prepare('INSERT INTO order_items (order_id,product_id,quantity,price,option) VALUES (?,?,?,?,?)');
     for (const item of orderItems) {
@@ -483,7 +784,7 @@ function createPaidOrder(userId, items, total, addressId) {
     return orderId;
   });
 
-  return tx(userId, items, total, addressId);
+  return tx(userId, items, pricing, addressId);
 }
 
 function normalizeProductOption(rawOption) {
@@ -645,15 +946,38 @@ app.post('/login',(req,res)=>{
   });
 });
 
-app.post('/logout',(req,res)=>{
+function handleLogout(req, res) {
   try {
     if (req.session && req.session.user && req.session.user.id) {
       // persist current session cart for this user
       try { saveCartForUser(req.session.user.id, req.session.cart || {}); } catch(e) { console.error('save cart on logout error', e && e.message); }
     }
   } catch(e){ /* ignore */ }
-  req.session.destroy(()=>res.redirect('/'));
-});
+
+  if (!req.session) {
+    res.clearCookie(SESSION_COOKIE_NAME);
+    return res.redirect('/login');
+  }
+
+  req.session.destroy((error) => {
+    if (error) {
+      console.error('Logout session destroy error', error);
+      req.session.user = null;
+      delete req.session.user;
+      req.session.cart = {};
+      return req.session.save(() => {
+        res.clearCookie(SESSION_COOKIE_NAME);
+        res.redirect('/login');
+      });
+    }
+
+    res.clearCookie(SESSION_COOKIE_NAME);
+    res.redirect('/login');
+  });
+}
+
+app.get('/logout', handleLogout);
+app.post('/logout', handleLogout);
 
 // account password change
 app.get('/account/password', requireLogin, (req,res)=>{
@@ -857,29 +1181,12 @@ app.post('/buy-now', (req,res)=>{
   if (q > availableStock) {
     return res.redirect('/product/' + p.id + '?error=' + encodeURIComponent(`${p.title} chỉ còn ${availableStock} sản phẩm trong kho.`));
   }
-  // if user has a default address, create order immediately with that address
-  const defaultAddr = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
-  if (defaultAddr) {
-    try {
-      const orderId = createPaidOrder(req.session.user.id, [{ product: p, quantity: q, option: normalizedOption }], total, defaultAddr.id);
-      syncCartToSession(req, {});
-      return res.render('shop/checkout-success', { orderId, total });
-    } catch (e) {
-      if (e && e.code === 'INSUFFICIENT_STOCK') {
-        return res.redirect('/product/' + p.id + '?error=' + encodeURIComponent(e.message));
-      }
-      throw e;
-    }
-  }
-
-  // otherwise add to cart and redirect to checkout so user can fill address
   const key = `${productId}::${normalizedOption}`;
-  req.session.cart = req.session.cart || {};
-  req.session.cart[key] = (req.session.cart[key] || 0) + q;
-  const normalized = normalizeCartWithInventory(req.session.cart);
-  syncCartToSession(req, normalized.cart);
+  req.session.checkoutCart = { [key]: q };
+  const normalized = normalizeCartWithInventory(req.session.checkoutCart);
+  req.session.checkoutCart = normalized.cart;
   const message = getInventoryMessage(normalized.adjustments);
-  return res.redirect('/checkout' + (message ? ('?error=' + encodeURIComponent(message)) : ''));
+  return res.redirect('/checkout?source=buy-now' + (message ? ('&error=' + encodeURIComponent(message)) : ''));
 });
 
 app.post('/cart/remove', (req,res)=>{
@@ -899,13 +1206,8 @@ app.post('/cart/remove', (req,res)=>{
 
 app.get('/checkout', (req,res)=>{
   if (!req.session.user) return res.redirect('/login');
-  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
-  syncCartToSession(req, normalizedCart.cart);
-  const { items, total } = loadCartItems(normalizedCart.cart);
-  if (items.length === 0) return res.redirect('/cart');
-  // try to fetch user's default address (if any) to prefill/skip form
-  const defaultAddress = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
-  res.render('shop/checkout',{ items, total, defaultAddress, stripePublishable: process.env.STRIPE_PUBLISHABLE || null, error: req.query.error || getInventoryMessage(normalizedCart.adjustments) });
+  if (req.query.source === 'cart') clearCheckoutCart(req);
+  return renderCheckoutPage(req, res);
 });
 
 app.get('/orders', (req,res)=>{
@@ -916,6 +1218,21 @@ app.get('/orders', (req,res)=>{
     return { order: o, items };
   });
   res.render('shop/orders',{ orders: ordersWithItems });
+});
+
+app.get('/chat', requireLogin, (req,res)=>{
+  if (req.session.user && req.session.user.role === 'admin') return res.redirect('/admin/chats');
+  db.prepare("UPDATE chat_messages SET is_read = 1 WHERE user_id = ? AND sender = 'admin' AND is_read = 0").run(req.session.user.id);
+  const messages = db.prepare('SELECT id, user_id, sender, content, is_read, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC, id ASC').all(req.session.user.id);
+  res.render('shop/chat', { messages, error: req.query.error || null });
+});
+
+app.post('/chat', requireLogin, (req,res)=>{
+  if (req.session.user && req.session.user.role === 'admin') return res.redirect('/admin/chats');
+  const content = typeof (req.body && req.body.message) === 'string' ? req.body.message.replace(/\r\n/g, '\n').trim().slice(0, 2000) : '';
+  if (!content) return res.redirect('/chat?error=' + encodeURIComponent('Vui lòng nhập nội dung tin nhắn.'));
+  db.prepare('INSERT INTO chat_messages (user_id, sender, content, is_read) VALUES (?,?,?,0)').run(req.session.user.id, 'user', content);
+  res.redirect('/chat');
 });
 
 // user-visible order status page (separate from cart)
@@ -939,7 +1256,7 @@ app.get('/order/:id', requireLogin, (req,res)=>{
   let orderAddress = null;
   if (order.address_id) orderAddress = db.prepare('SELECT * FROM addresses WHERE id = ?').get(order.address_id);
   const defaultAddress = db.prepare('SELECT * FROM addresses WHERE user_id = ? AND is_default = 1').get(req.session.user.id);
-  res.render('shop/order-detail', { order, items, orderAddress, defaultAddress });
+  res.render('shop/order-detail', { order, items, orderAddress, defaultAddress, notice: res.locals.flashNotice || req.query.notice || null });
 });
 
 // user: edit order (GET form)
@@ -948,26 +1265,144 @@ app.get('/order/:id/edit', requireLogin, (req,res)=>{
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(id, req.session.user.id);
   if (!order) return res.status(404).send('Not found');
   if (order.status === 'shipped' || order.status === 'cancelled') return res.status(400).send('Không thể chỉnh sửa đơn này');
-  const items = db.prepare('SELECT oi.*, p.title FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?').all(id);
+  const activeDiscount = order.discount_code ? getDiscountCodeRecord(order.discount_code) : null;
+  const items = db.prepare('SELECT oi.*, p.title, p.stock FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?').all(id)
+    .map(item => Object.assign({}, item, {
+      editableStock: (parseInt(item.stock, 10) || 0) + (parseInt(item.quantity, 10) || 0)
+    }));
   let orderAddress = null;
   if (order.address_id) orderAddress = db.prepare('SELECT * FROM addresses WHERE id = ?').get(order.address_id);
   const user = db.prepare('SELECT id,name,email,phone FROM users WHERE id = ?').get(req.session.user.id);
-  res.render('shop/order-edit', { order, items, orderAddress, user });
+  res.render('shop/order-edit', { order, items, orderAddress, user, error: req.query.error || null, activeDiscount });
 });
 
-// user: update order address/info
+// user: update order address/info and editable line items
 app.post('/order/:id/update', requireLogin, (req,res)=>{
   const id = req.params.id;
   const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(id, req.session.user.id);
   if (!order) return res.status(404).send('Not found');
   if (order.status === 'shipped' || order.status === 'cancelled') return res.status(400).send('Không thể chỉnh sửa đơn này');
   const { recipient, phone, street, city, postcode } = req.body;
-  // insert new address and attach to order
-  const info = db.prepare('INSERT INTO addresses (user_id,recipient,phone,street,city,postcode,is_default) VALUES (?,?,?,?,?,?,?)')
-    .run(req.session.user.id, recipient, phone, street, city, postcode || null, 0);
-  const addrId = info.lastInsertRowid;
-  db.prepare('UPDATE orders SET address_id = ? WHERE id = ?').run(addrId, id);
-  res.redirect('/order-status');
+  const itemIds = Array.isArray(req.body.itemId) ? req.body.itemId : [req.body.itemId];
+  const quantities = Array.isArray(req.body.qty) ? req.body.qty : [req.body.qty];
+  const options = Array.isArray(req.body.option) ? req.body.option : [req.body.option];
+  const editUrl = '/order/' + id + '/edit';
+
+  if (!recipient || !phone || !street || !city) {
+    return res.redirect(editUrl + '?error=' + encodeURIComponent('Vui lòng điền đầy đủ thông tin giao hàng.'));
+  }
+
+  const cleanedPhone = String(phone || '').replace(/\s+/g, '');
+  if (!/^0\d{9}$/.test(cleanedPhone)) {
+    return res.redirect(editUrl + '?error=' + encodeURIComponent('Số điện thoại không hợp lệ.'));
+  }
+
+  const existingItems = db.prepare('SELECT oi.*, p.title, p.stock FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?').all(id);
+  if (!existingItems.length) return res.redirect(editUrl + '?error=' + encodeURIComponent('Đơn hàng không có sản phẩm để chỉnh sửa.'));
+
+  const existingById = new Map(existingItems.map(item => [String(item.id), item]));
+  const updatedItems = [];
+
+  for (let index = 0; index < itemIds.length; index += 1) {
+    const itemId = String(itemIds[index] || '');
+    const existingItem = existingById.get(itemId);
+    if (!existingItem) return res.redirect(editUrl + '?error=' + encodeURIComponent('Có sản phẩm trong đơn không hợp lệ.'));
+
+    const nextQuantity = parseInt(quantities[index], 10);
+    if (!Number.isInteger(nextQuantity) || nextQuantity < 1) {
+      return res.redirect(editUrl + '?error=' + encodeURIComponent('Số lượng mỗi sản phẩm phải từ 1 trở lên.'));
+    }
+
+    const rawOption = options[index];
+    const normalizedOption = rawOption ? normalizeProductOption(rawOption) : null;
+    if (rawOption && !normalizedOption) {
+      return res.redirect(editUrl + '?error=' + encodeURIComponent('Size sản phẩm không hợp lệ.'));
+    }
+
+    updatedItems.push({
+      id: existingItem.id,
+      productId: existingItem.product_id,
+      title: existingItem.title,
+      quantity: nextQuantity,
+      oldQuantity: parseInt(existingItem.quantity, 10) || 0,
+      price: parseInt(existingItem.price, 10) || 0,
+      option: normalizedOption,
+      currentStock: parseInt(existingItem.stock, 10) || 0
+    });
+  }
+
+  const requestedByProduct = new Map();
+  updatedItems.forEach(item => {
+    const key = String(item.productId);
+    requestedByProduct.set(key, (requestedByProduct.get(key) || 0) + item.quantity);
+  });
+
+  let addrId = order.address_id || null;
+  const previousTotal = parseInt(order.total, 10) || 0;
+  let updatedPricing = null;
+
+  try {
+    const tx = db.transaction(() => {
+      const info = db.prepare('INSERT INTO addresses (user_id,recipient,phone,street,city,postcode,is_default) VALUES (?,?,?,?,?,?,?)')
+        .run(req.session.user.id, recipient, cleanedPhone, street, city, postcode || null, 0);
+      addrId = info.lastInsertRowid;
+
+      for (const existingItem of existingItems) {
+        db.prepare('UPDATE products SET stock = stock + ? WHERE id = ?').run(existingItem.quantity, existingItem.product_id);
+      }
+
+      for (const [productId, requestedQty] of requestedByProduct.entries()) {
+        const product = db.prepare('SELECT stock, title FROM products WHERE id = ?').get(productId);
+        const availableStock = Math.max(0, parseInt(product && product.stock, 10) || 0);
+        if (requestedQty > availableStock) {
+          const err = new Error(`${product && product.title ? product.title : 'Sản phẩm'} chỉ còn ${availableStock} sản phẩm trong kho.`);
+          err.code = 'INSUFFICIENT_STOCK';
+          throw err;
+        }
+      }
+
+      for (const [productId, requestedQty] of requestedByProduct.entries()) {
+        db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?').run(requestedQty, productId);
+      }
+
+      const updateItem = db.prepare('UPDATE order_items SET quantity = ?, option = ? WHERE id = ? AND order_id = ?');
+      for (const item of updatedItems) {
+        updateItem.run(item.quantity, item.option || null, item.id, id);
+      }
+
+      const repricedItems = updatedItems.map(item => ({
+        product: { id: item.productId, price: item.price },
+        quantity: item.quantity,
+        price: item.price
+      }));
+      const pricing = buildUpdatedOrderPricing(order, repricedItems);
+      updatedPricing = pricing;
+      db.prepare('UPDATE orders SET address_id = ?, subtotal = ?, discount_amount = ?, discount_code = ?, total = ? WHERE id = ?')
+        .run(addrId, pricing.subtotal, pricing.discountAmount, pricing.discountCode, pricing.total, id);
+    });
+
+    tx();
+  } catch (error) {
+    if (error && error.code === 'INSUFFICIENT_STOCK') {
+      return res.redirect(editUrl + '?error=' + encodeURIComponent(error.message));
+    }
+    console.error('Order update error', error && error.message);
+    return res.redirect(editUrl + '?error=' + encodeURIComponent('Không thể cập nhật đơn hàng lúc này.'));
+  }
+
+  const nextTotal = updatedPricing ? updatedPricing.total : previousTotal;
+  const diff = nextTotal - previousTotal;
+  let notice = 'Đơn hàng đã được cập nhật thành công.';
+  if (diff > 0) {
+    notice = `Số lượng hàng đã tăng. Bạn cần thanh toán thêm ${diff.toLocaleString()} VND.`;
+  } else if (diff < 0) {
+    notice = `Số lượng hàng đã giảm. Bạn sẽ được hoàn ${Math.abs(diff).toLocaleString()} VND về tài khoản.`;
+  }
+
+  req.session.flashNotice = notice;
+  req.session.save(() => {
+    res.redirect('/order/' + id);
+  });
 });
 
 // user: cancel order
@@ -987,10 +1422,10 @@ app.post('/order/:id/cancel', requireLogin, (req,res)=>{
 // checkout (mock)
 app.post('/checkout',(req,res)=>{
   if (!req.session.user) return res.redirect('/login');
-  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
-  syncCartToSession(req, normalizedCart.cart);
-  const { items, total } = loadCartItems(normalizedCart.cart);
+  const checkoutView = getCheckoutViewModel(req, { discountCodeInput: req.body && req.body.discountCode, formValues: req.body || {} });
+  const { items, discountSummary } = checkoutView;
   if (!items.length) return res.redirect('/cart?error=' + encodeURIComponent('Gio hang trong.'));
+  if (discountSummary.error) return res.status(400).render('shop/checkout', checkoutView);
   // capture shipping info from the form and save as an address, then attach to order
   const { recipient, phone, street, city, postcode } = req.body || {};
   let addrId = null;
@@ -1006,23 +1441,35 @@ app.post('/checkout',(req,res)=>{
 
   let orderId;
   try {
-    orderId = createPaidOrder(req.session.user.id, items, total, addrId);
+    orderId = createPaidOrder(req.session.user.id, items, discountSummary, addrId);
   } catch (e) {
     if (e && e.code === 'INSUFFICIENT_STOCK') {
-      return res.redirect('/checkout?error=' + encodeURIComponent(e.message));
+      return res.status(400).render('shop/checkout', getCheckoutViewModel(req, {
+        error: e.message,
+        discountCodeInput: req.body && req.body.discountCode,
+        formValues: req.body || {}
+      }));
+    }
+    if (e && e.code === 'DISCOUNT_INVALID') {
+      return res.status(400).render('shop/checkout', getCheckoutViewModel(req, {
+        error: e.message,
+        discountCodeInput: req.body && req.body.discountCode,
+        formValues: req.body || {}
+      }));
     }
     throw e;
   }
-  syncCartToSession(req, {});
+  if (checkoutView.checkoutSource === 'buy-now') clearCheckoutCart(req);
+  else syncCartToSession(req, {});
   // send email to user if possible
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
-  const orderHtml = `<p>Đơn hàng #${orderId} — Tổng: ${total.toLocaleString()} VND</p>`;
+  const orderHtml = buildOrderConfirmationHtml(orderId, discountSummary);
   if (mailer && user && user.email) {
     mailer.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: user.email, subject: 'Xác nhận đơn hàng', html: orderHtml }).catch(e=>console.error('Mail send error', e.message));
   } else {
     console.log('Order created', orderId, 'user email', user && user.email);
   }
-  res.render('shop/checkout-success', { orderId, total });
+  res.render('shop/checkout-success', { orderId, total: discountSummary.total, discountSummary });
 });
 
 // Stripe integration: create a checkout session from the current cart
@@ -1036,26 +1483,11 @@ app.post('/create-stripe-session', async (req,res)=>{
       req.session.checkoutAddress = { recipient, phone, street, city, postcode: postcode || null };
     }
   } catch(e) { /* ignore */ }
-  const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
-  syncCartToSession(req, normalizedCart.cart);
-  const cart = normalizedCart.cart;
-  const line_items = [];
-  for (const key of Object.keys(cart)) {
-    const parsed = parseCartKey(key);
-    const p = db.prepare('SELECT * FROM products WHERE id = ?').get(parsed.productId);
-    if (!p) continue;
-    const q = cart[key];
-    // naive currency conversion: assume VND, convert to USD cents by /1000 then *100
-    const unit_amount = Math.max(100, Math.round((p.price/1000)) * 100);
-    line_items.push({
-      price_data: {
-        currency: 'usd',
-        product_data: { name: p.title, description: p.description },
-        unit_amount
-      },
-      quantity: q
-    });
-  }
+  const checkoutView = getCheckoutViewModel(req, { discountCodeInput: req.body && req.body.discountCode });
+  if (!checkoutView.items.length) return res.status(400).json({ error: 'Giỏ hàng trống.' });
+  if (checkoutView.discountSummary.error) return res.status(400).json({ error: checkoutView.discountSummary.error });
+  req.session.checkoutDiscountCode = checkoutView.discountSummary.inputCode || null;
+  const line_items = buildStripeLineItems(checkoutView.items, checkoutView.discountSummary);
   const origin = req.protocol + '://' + req.get('host');
   try {
     const session = await stripeLib.checkout.sessions.create({
@@ -1080,10 +1512,10 @@ app.get('/stripe-success', async (req,res)=>{
   try {
     const stripeSession = sessionId ? await stripeLib.checkout.sessions.retrieve(sessionId) : null;
     // if payment succeeded, create order from cart
-    const normalizedCart = normalizeCartWithInventory(req.session.cart || {});
-    syncCartToSession(req, normalizedCart.cart);
-    const { items, total } = loadCartItems(normalizedCart.cart);
+    const checkoutView = getCheckoutViewModel(req, { discountCodeInput: req.session.checkoutDiscountCode || '' });
+    const { items, discountSummary } = checkoutView;
     if (!items.length) return res.redirect('/cart');
+    if (discountSummary.error) return renderCheckoutPage(req, res, { error: discountSummary.error, discountCodeInput: req.session.checkoutDiscountCode || '' });
     // if we saved a checkoutAddress in session (from the checkout form), persist it and attach to order
     let addrId = null;
     try {
@@ -1099,16 +1531,29 @@ app.get('/stripe-success', async (req,res)=>{
       }
     } catch(e) { console.error('Stripe address save error', e.message); }
 
-    const orderId = createPaidOrder(req.session.user.id, items, total, addrId);
-    syncCartToSession(req, {});
+    let orderId;
+    try {
+      orderId = createPaidOrder(req.session.user.id, items, discountSummary, addrId);
+    } catch (error) {
+      if (error && (error.code === 'DISCOUNT_INVALID' || error.code === 'INSUFFICIENT_STOCK')) {
+        return renderCheckoutPage(req, res, {
+          error: error.message,
+          discountCodeInput: req.session.checkoutDiscountCode || ''
+        });
+      }
+      throw error;
+    }
+    if (checkoutView.checkoutSource === 'buy-now') clearCheckoutCart(req);
+    else syncCartToSession(req, {});
+    try { delete req.session.checkoutDiscountCode; } catch(e){}
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.user.id);
-    const orderHtml = `<p>Đơn hàng #${orderId} — Tổng: ${total.toLocaleString()} VND</p>`;
+    const orderHtml = buildOrderConfirmationHtml(orderId, discountSummary);
     if (mailer && user && user.email) {
       mailer.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: user.email, subject: 'Xác nhận đơn hàng', html: orderHtml }).catch(e=>console.error('Mail send error', e.message));
     } else {
       console.log('Order created (stripe)', orderId, 'user', user && user.email);
     }
-    res.render('shop/checkout-success', { orderId, total });
+    res.render('shop/checkout-success', { orderId, total: discountSummary.total, discountSummary });
   } catch (e) {
     console.error('Stripe success handling error', e.message);
     res.redirect('/checkout');
@@ -1271,15 +1716,135 @@ function buildBackUrlWithError(req, message){
   }
 }
 
+function getAdminChatInbox() {
+  const rows = db.prepare(`
+    SELECT
+      u.id AS user_id,
+      u.name,
+      u.email,
+      u.avatar,
+      last_message.content AS last_content,
+      last_message.created_at AS last_created_at,
+      last_message.sender AS last_sender,
+      COALESCE(unread.unread_count, 0) AS unread_count
+    FROM users u
+    JOIN (
+      SELECT user_id, MAX(id) AS last_message_id
+      FROM chat_messages
+      GROUP BY user_id
+    ) latest ON latest.user_id = u.id
+    JOIN chat_messages last_message ON last_message.id = latest.last_message_id
+    LEFT JOIN (
+      SELECT user_id, COUNT(*) AS unread_count
+      FROM chat_messages
+      WHERE sender = 'user' AND is_read = 0
+      GROUP BY user_id
+    ) unread ON unread.user_id = u.id
+    WHERE u.role IS NULL OR u.role != 'admin'
+    ORDER BY last_message.id DESC
+  `).all();
+
+  return rows.map(row => ({
+    user: {
+      id: row.user_id,
+      name: row.name || 'Khách hàng',
+      email: row.email || '',
+      avatar: row.avatar || null
+    },
+    last: {
+      content: row.last_content,
+      created_at: row.last_created_at,
+      sender: row.last_sender
+    },
+    unreadCount: parseInt(row.unread_count, 10) || 0
+  }));
+}
+
 app.get('/admin', requireAdmin, (req,res)=>{
   const products = db.prepare('SELECT * FROM products').all();
   res.render('admin/index',{ products, activeAdmin: 'products' });
 });
 
+app.get('/admin/discounts', requireAdmin, (req,res)=>{
+  const products = db.prepare('SELECT id, title FROM products ORDER BY title COLLATE NOCASE ASC').all();
+  const discounts = db.prepare(`
+    SELECT dc.*, p.title AS product_title,
+      COUNT(DISTINCT o.user_id) AS total_used
+    FROM discount_codes dc
+    LEFT JOIN products p ON p.id = dc.product_id
+    LEFT JOIN orders o ON upper(o.discount_code) = upper(dc.code)
+    GROUP BY dc.id, dc.code, dc.product_id, dc.discount_amount, dc.usage_limit, dc.is_active, dc.created_at, p.title
+    ORDER BY dc.created_at DESC, dc.id DESC
+  `).all();
+  res.render('admin/discounts', {
+    products,
+    discounts,
+    activeAdmin: 'discounts',
+    error: req.query.error || null,
+    success: req.query.success || null
+  });
+});
+
+app.post('/admin/discounts', requireAdmin, (req,res)=>{
+  const code = normalizeDiscountCode(req.body.code);
+  const productId = parseInt(req.body.product_id, 10);
+  const discountAmount = parseInt(req.body.discount_amount, 10) || 0;
+  const usageLimit = parseInt(req.body.usage_limit, 10) || 0;
+
+  if (!code || !productId || discountAmount <= 0 || usageLimit < 1) {
+    return res.redirect('/admin/discounts?error=' + encodeURIComponent('Vui lòng nhập mã, chọn sản phẩm, số tiền giảm và số lượng sử dụng hợp lệ.'));
+  }
+
+  const product = db.prepare('SELECT id FROM products WHERE id = ?').get(productId);
+  if (!product) {
+    return res.redirect('/admin/discounts?error=' + encodeURIComponent('Sản phẩm áp dụng không tồn tại.'));
+  }
+
+  try {
+    db.prepare('INSERT INTO discount_codes (code, product_id, discount_amount, usage_limit, is_active) VALUES (?,?,?,?,1)').run(code, productId, discountAmount, usageLimit);
+    return res.redirect('/admin/discounts?success=' + encodeURIComponent('Đã tạo mã giảm giá thành công.'));
+  } catch (e) {
+    const message = e && /unique/i.test(e.message || '')
+      ? 'Mã giảm giá này đã tồn tại.'
+      : 'Không thể tạo mã giảm giá.';
+    return res.redirect('/admin/discounts?error=' + encodeURIComponent(message));
+  }
+});
+
+app.post('/admin/discounts/:id/delete', requireAdmin, (req,res)=>{
+  db.prepare('DELETE FROM discount_codes WHERE id = ?').run(req.params.id);
+  res.redirect('/admin/discounts?success=' + encodeURIComponent('Đã xóa mã giảm giá.'));
+});
+
+app.get('/admin/chats', requireAdmin, (req,res)=>{
+  const chats = getAdminChatInbox();
+  res.render('admin/chats', { chats, activeAdmin: 'chats' });
+});
+
+app.get('/admin/chat/:userId', requireAdmin, (req,res)=>{
+  const userId = parseInt(req.params.userId, 10);
+  if (!userId) return res.status(404).send('Not found');
+  const user = db.prepare('SELECT id, name, email, avatar FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).send('Not found');
+  db.prepare("UPDATE chat_messages SET is_read = 1 WHERE user_id = ? AND sender = 'user' AND is_read = 0").run(userId);
+  const messages = db.prepare('SELECT id, user_id, sender, content, is_read, created_at FROM chat_messages WHERE user_id = ? ORDER BY created_at ASC, id ASC').all(userId);
+  res.render('admin/chat-thread', { user, messages, activeAdmin: 'chats', error: req.query.error || null });
+});
+
+app.post('/admin/chat/:userId', requireAdmin, (req,res)=>{
+  const userId = parseInt(req.params.userId, 10);
+  if (!userId) return res.status(404).send('Not found');
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).send('Not found');
+  const content = typeof (req.body && req.body.message) === 'string' ? req.body.message.replace(/\r\n/g, '\n').trim().slice(0, 2000) : '';
+  if (!content) return res.redirect('/admin/chat/' + userId + '?error=' + encodeURIComponent('Vui lòng nhập nội dung phản hồi.'));
+  db.prepare('INSERT INTO chat_messages (user_id, sender, content, is_read) VALUES (?,?,?,0)').run(userId, 'admin', content);
+  res.redirect('/admin/chat/' + userId);
+});
+
 // Admin: sales / revenue report
 app.get('/admin/sales', requireAdmin, (req,res)=>{
   try {
-    // support period filter: day, week, month (default month)
     const period = (req.query.period || 'month');
     const now = new Date();
     let since = new Date(now);
@@ -1293,7 +1858,6 @@ app.get('/admin/sales', requireAdmin, (req,res)=>{
     }
     const sinceIso = since.toISOString();
 
-    // Aggregate sold quantities and revenue per product within the window, exclude cancelled orders
     const rows = db.prepare(`
       SELECT oi.product_id, p.title, p.image, SUM(oi.quantity) AS total_qty, SUM(oi.quantity * oi.price) AS revenue
       FROM order_items oi
@@ -1309,11 +1873,19 @@ app.get('/admin/sales', requireAdmin, (req,res)=>{
       return Object.assign({}, r, { safeImage, revenue: r.revenue || 0, total_qty: r.total_qty || 0 });
     });
 
-    // compute total revenue in period (can be derived from rows or run an aggregate query)
-    let totalRevenue = 0;
-    if (formatted && formatted.length) totalRevenue = formatted.reduce((s,r)=>s + (r.revenue||0), 0);
+    const summary = db.prepare(`
+      SELECT COUNT(*) AS total_orders, SUM(o.total) AS total_revenue, COUNT(DISTINCT o.user_id) AS total_customers
+      FROM orders o
+      WHERE o.status != 'cancelled' AND datetime(o.created_at) >= datetime(?)
+    `).get(sinceIso) || {};
 
-    // compute per-day revenue history within the same window
+    const totalRevenue = parseInt(summary.total_revenue, 10) || 0;
+    const totalOrders = parseInt(summary.total_orders, 10) || 0;
+    const totalCustomers = parseInt(summary.total_customers, 10) || 0;
+    const averageOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+    const totalUnitsSold = formatted.reduce((sum, row) => sum + (parseInt(row.total_qty, 10) || 0), 0);
+    const topProduct = formatted.length ? formatted[0] : null;
+
     const dayRows = db.prepare(`
       SELECT date(o.created_at) AS day, COUNT(*) as orders_count, SUM(o.total) AS revenue
       FROM orders o
@@ -1323,11 +1895,52 @@ app.get('/admin/sales', requireAdmin, (req,res)=>{
     `).all(sinceIso);
     const dailyHistory = (dayRows || []).map(r=>({ day: r.day, orders: r.orders_count || 0, revenue: r.revenue || 0 }));
 
-    // prepare chart data (days ascending)
     const chartDays = (dailyHistory || []).slice().reverse().map(d=>d.day);
     const chartRevenue = (dailyHistory || []).slice().reverse().map(d=>d.revenue || 0);
+    const chartOrders = (dailyHistory || []).slice().reverse().map(d=>d.orders || 0);
 
-    res.render('admin/sales', { rows: formatted, period, totalRevenue, dailyHistory, chartDays, chartRevenue, activeAdmin: 'sales' });
+    const topCustomers = db.prepare(`
+      SELECT o.user_id, u.name, u.email, COUNT(o.id) AS orders_count, SUM(o.total) AS total_spent
+      FROM orders o
+      LEFT JOIN users u ON u.id = o.user_id
+      WHERE o.status != 'cancelled' AND datetime(o.created_at) >= datetime(?)
+      GROUP BY o.user_id, u.name, u.email
+      ORDER BY total_spent DESC, orders_count DESC
+      LIMIT 8
+    `).all(sinceIso).map(row => ({
+      user_id: row.user_id,
+      name: row.name || 'Khách hàng',
+      email: row.email || '',
+      orders_count: parseInt(row.orders_count, 10) || 0,
+      total_spent: parseInt(row.total_spent, 10) || 0
+    }));
+
+    const topProductChart = formatted.slice(0, 5).map(item => ({
+      title: item.title,
+      qty: parseInt(item.total_qty, 10) || 0,
+      revenue: parseInt(item.revenue, 10) || 0
+    }));
+
+    const latestDays = dailyHistory.slice(0, 7);
+
+    res.render('admin/sales', {
+      rows: formatted,
+      period,
+      totalRevenue,
+      totalOrders,
+      totalCustomers,
+      totalUnitsSold,
+      averageOrderValue,
+      topProduct,
+      topCustomers,
+      dailyHistory,
+      latestDays,
+      chartDays,
+      chartRevenue,
+      chartOrders,
+      topProductChart,
+      activeAdmin: 'sales'
+    });
   } catch (e) {
     console.error('Sales report error', e && e.message);
     res.status(500).send('Server error generating sales report');
@@ -1368,13 +1981,10 @@ app.get('/admin/sales/export', requireAdmin, (req,res)=>{
 app.get('/admin/sales/day/:day', requireAdmin, (req,res)=>{
   try {
     const day = req.params.day; // expect format YYYY-MM-DD
-    // per-page pagination for orders
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const pageSize = 20;
     const offset = (page - 1) * pageSize;
 
-    // per-product aggregation for that day
-    console.log('Sales day: running prodRows query for', day);
     const prodRows = db.prepare(`
       SELECT oi.product_id, p.title, p.image, SUM(oi.quantity) AS total_qty, SUM(oi.quantity * oi.price) AS revenue
       FROM order_items oi
@@ -1392,17 +2002,52 @@ app.get('/admin/sales/day/:day', requireAdmin, (req,res)=>{
       revenue: r.revenue || 0
     }));
 
-    // list orders for that day with pagination
-    console.log('Sales day: fetching paginated orders for', day, 'offset', offset);
-    const orders = db.prepare("SELECT * FROM orders WHERE status != 'cancelled' AND date(created_at) = date(?) ORDER BY created_at DESC LIMIT ? OFFSET ?").all(day, pageSize, offset);
+    const orders = db.prepare(`
+      SELECT o.*, u.name AS customer_name, u.email AS customer_email
+      FROM orders o
+      LEFT JOIN users u ON u.id = o.user_id
+      WHERE o.status != 'cancelled' AND date(o.created_at) = date(?)
+      ORDER BY o.created_at DESC
+      LIMIT ? OFFSET ?
+    `).all(day, pageSize, offset);
     const countRow = db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND date(created_at) = date(?)").get(day);
     const totalOrders = countRow ? (countRow.cnt || 0) : 0;
     const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
 
-    // compute totals
     const totalRevenue = products.reduce((s,p)=>s + (p.revenue||0), 0);
+    const totalUnitsSold = products.reduce((s,p)=>s + (p.total_qty||0), 0);
+    const topCustomers = db.prepare(`
+      SELECT o.user_id, u.name, u.email, COUNT(o.id) AS orders_count, SUM(o.total) AS total_spent
+      FROM orders o
+      LEFT JOIN users u ON u.id = o.user_id
+      WHERE o.status != 'cancelled' AND date(o.created_at) = date(?)
+      GROUP BY o.user_id, u.name, u.email
+      ORDER BY total_spent DESC, orders_count DESC
+      LIMIT 5
+    `).all(day).map(row => ({
+      user_id: row.user_id,
+      name: row.name || 'Khách hàng',
+      email: row.email || '',
+      orders_count: parseInt(row.orders_count, 10) || 0,
+      total_spent: parseInt(row.total_spent, 10) || 0
+    }));
+    const topProduct = products.length ? products[0] : null;
 
-    res.render('admin/sales-day', { day, products, orders, totalRevenue, totalOrders, page, pageSize, totalPages, period: req.query.period || 'day', activeAdmin: 'sales' });
+    res.render('admin/sales-day', {
+      day,
+      products,
+      orders,
+      totalRevenue,
+      totalOrders,
+      totalUnitsSold,
+      topCustomers,
+      topProduct,
+      page,
+      pageSize,
+      totalPages,
+      period: req.query.period || 'day',
+      activeAdmin: 'sales'
+    });
   } catch (e) {
     console.error('Sales day detail error', e && e.message);
     if (e && e.stack) console.error(e.stack);
@@ -1511,4 +2156,16 @@ app.get('/_health', (req,res)=>{
   }
 });
 
-app.listen(5600, '0.0.0.0', ()=>console.log(`Server running on http://localhost:${PORT}`));
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+
+server.on('error', (error) => {
+  if (error && error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} dang duoc su dung. Hay dung tien trinh cu hoac chay lai voi PORT khac.`);
+    process.exit(1);
+  }
+
+  console.error('Server start error:', error);
+  process.exit(1);
+});
