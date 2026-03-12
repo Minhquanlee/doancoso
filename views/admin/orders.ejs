@@ -1,53 +1,160 @@
-<h2>Quản lý đơn hàng</h2>
-<table>
-  <thead><tr><th>ID</th><th>User</th><th>Total</th><th>Items</th><th>Action</th></tr></thead>
-  <tbody>
-    <% orders.forEach(o=>{ %>
-      <tr>
-        <td><%= o.order.id %></td>
-        <td><%= o.order.user_id %></td>
-        <td>
-          <div><%= o.order.total.toLocaleString() %></div>
-          <% if (o.order.discount_amount > 0) { %>
-            <small style="color:#b42318">-<%= o.order.discount_amount.toLocaleString() %> VND (<%= o.order.discount_code %>)</small>
-          <% } %>
-        </td>
-  <!-- status column removed per admin request -->
-        <td>
-          <ul>
-            <% o.items.forEach(i=>{ %>
-              <li>
-                <%= i.title %>
-                <% if (i.option) { %>
-                  <small style="color:var(--muted)"> — Size: <%= i.option %></small>
-                <% } %>
-                x <%= i.quantity %>
-              </li>
-            <% }) %>
-          </ul>
-        </td>
-        <td style="display:flex;gap:8px;align-items:center">
-          <a href="/admin/orders/<%= o.order.id %>" class="btn-ghost">Xem</a>
-          <% if (o.order.status === 'cancelled') { %>
-            <!-- If the order is cancelled, only allow viewing. No edit/delete/status controls. -->
-            <div style="padding:6px 10px;border-radius:6px;background:#fff6f6;color:#b91c1c;border:1px solid rgba(239,68,68,0.06)">Đã bị hủy</div>
-          <% } else { %>
-            <a href="/admin/orders/<%= o.order.id %>/edit" class="btn-ghost">Sửa</a>
-            <form method="post" action="/admin/orders/<%= o.order.id %>/delete" onsubmit="return confirm('Xác nhận xóa đơn hàng #<%= o.order.id %>?')" style="display:inline">
-              <button type="submit" class="btn-detail">Xóa</button>
-            </form>
-            <form method="post" action="/admin/orders/<%= o.order.id %>/status" style="margin-left:8px">
-              <select name="status">
-                <option value="pending" <%= o.order.status==='pending'?'selected':'' %>>pending</option>
-                <option value="paid" <%= o.order.status==='paid'?'selected':'' %>>paid</option>
-                <option value="shipped" <%= o.order.status==='shipped'?'selected':'' %>>shipped</option>
-                <option value="cancelled" <%= o.order.status==='cancelled'?'selected':'' %>>cancelled</option>
-              </select>
-              <button type="submit">Update</button>
-            </form>
-          <% } %>
-        </td>
-      </tr>
-    <% }) %>
-  </tbody>
-</table>
+<%
+  const orderCount = orders.length;
+  const totalRevenue = orders.reduce((sum, entry) => sum + (entry.order.total || 0), 0);
+  const pendingCount = orders.filter((entry) => entry.order.status === 'pending').length;
+  const shippedCount = orders.filter((entry) => entry.order.status === 'shipped').length;
+%>
+
+<div class="admin-wrap">
+  <aside class="admin-sidebar">
+    <a href="/admin" class="nav-item <%= (typeof activeAdmin==='undefined' || activeAdmin==='products') ? 'active' : '' %>">
+      <span class="icon">📦</span>
+      <span class="label">Sản phẩm</span>
+    </a>
+    <a href="/admin/new" class="nav-item <%= (activeAdmin==='new') ? 'active' : '' %>">
+      <span class="icon">✨</span>
+      <span class="label">Tạo sản phẩm mới</span>
+    </a>
+    <a href="/admin/orders" class="nav-item <%= (activeAdmin==='orders') ? 'active' : '' %>">
+      <span class="icon">🛒</span>
+      <span class="label">Đơn hàng</span>
+    </a>
+    <a href="/admin/discounts" class="nav-item <%= (activeAdmin==='discounts') ? 'active' : '' %>">
+      <span class="icon">🏷️</span>
+      <span class="label">Mã giảm giá</span>
+    </a>
+    <a href="/admin/sales" class="nav-item <%= (activeAdmin==='sales') ? 'active' : '' %>">
+      <span class="icon">📈</span>
+      <span class="label">Doanh thu</span>
+    </a>
+  </aside>
+
+  <section class="admin-main orders-admin-page">
+    <div class="orders-hero-card">
+      <div>
+        <p class="orders-eyebrow">Order management</p>
+        <h2 class="admin-title orders-title">Quản lý đơn hàng</h2>
+        <p class="orders-subtitle">Theo dõi tình trạng xử lý, rà soát sản phẩm trong đơn và cập nhật nhanh ngay tại một màn hình.</p>
+      </div>
+      <div class="orders-kpi-grid">
+        <div class="orders-kpi-card">
+          <span>Tổng đơn</span>
+          <strong><%= orderCount %></strong>
+        </div>
+        <div class="orders-kpi-card">
+          <span>Chờ xử lý</span>
+          <strong><%= pendingCount %></strong>
+        </div>
+        <div class="orders-kpi-card">
+          <span>Đã giao</span>
+          <strong><%= shippedCount %></strong>
+        </div>
+        <div class="orders-kpi-card accent-revenue">
+          <span>Tổng giá trị</span>
+          <strong><%= totalRevenue.toLocaleString() %></strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="orders-table-card">
+      <div class="orders-table-head">
+        <div>
+          <h3>Danh sách đơn hàng</h3>
+          <p><%= orderCount %> đơn hàng đang hiển thị trong hệ thống.</p>
+        </div>
+      </div>
+
+      <% if (!orders.length) { %>
+        <div class="orders-empty-state">
+          <h3>Chưa có đơn hàng nào</h3>
+          <p>Khi khách đặt hàng, danh sách sẽ xuất hiện tại đây để bạn xử lý và cập nhật trạng thái.</p>
+        </div>
+      <% } else { %>
+        <div class="orders-table-wrap">
+          <table class="admin-orders-table">
+            <thead>
+              <tr>
+                <th>Mã đơn</th>
+                <th>Khách hàng</th>
+                <th>Giá trị</th>
+                <th>Sản phẩm</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% orders.forEach((o) => { %>
+                <tr>
+                  <td>
+                    <div class="order-id-cell">
+                      <strong>#<%= o.order.id %></strong>
+                      <span><%= o.order.created_at || 'Mới tạo' %></span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="order-user-cell">
+                      <strong>User <%= o.order.user_id %></strong>
+                      <span>Tài khoản đặt hàng</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="order-total-cell">
+                      <strong><%= o.order.total.toLocaleString() %> VND</strong>
+                      <% if (o.order.discount_amount > 0) { %>
+                        <span class="order-discount-chip">-<%= o.order.discount_amount.toLocaleString() %> (<%= o.order.discount_code %>)</span>
+                      <% } %>
+                    </div>
+                  </td>
+                  <td>
+                    <ul class="order-items-list">
+                      <% o.items.forEach((i) => { %>
+                        <li>
+                          <span class="item-title"><%= i.title %></span>
+                          <span class="item-meta">
+                            <% if (i.option) { %>
+                              Size <%= i.option %> • 
+                            <% } %>
+                            SL <%= i.quantity %>
+                          </span>
+                        </li>
+                      <% }) %>
+                    </ul>
+                  </td>
+                  <td>
+                    <span class="sales-status-chip <%= o.order.status %>"><%= o.order.status %></span>
+                  </td>
+                  <td>
+                    <div class="orders-action-stack">
+                      <div class="orders-action-row">
+                        <a href="/admin/orders/<%= o.order.id %>" class="btn-ghost">Xem</a>
+                        <% if (o.order.status !== 'cancelled') { %>
+                          <a href="/admin/orders/<%= o.order.id %>/edit" class="btn-ghost">Sửa</a>
+                          <form method="post" action="/admin/orders/<%= o.order.id %>/delete" onsubmit="return confirm('Xác nhận xóa đơn hàng #<%= o.order.id %>?')">
+                            <button type="submit" class="btn-detail orders-delete-btn">Xóa</button>
+                          </form>
+                        <% } %>
+                      </div>
+                      <% if (o.order.status === 'cancelled') { %>
+                        <span class="orders-cancel-note">Đơn hàng đã bị hủy</span>
+                      <% } else { %>
+                        <form method="post" action="/admin/orders/<%= o.order.id %>/status" class="orders-status-form">
+                          <select name="status" class="orders-status-select">
+                            <option value="pending" <%= o.order.status==='pending'?'selected':'' %>>pending</option>
+                            <option value="paid" <%= o.order.status==='paid'?'selected':'' %>>paid</option>
+                            <option value="shipped" <%= o.order.status==='shipped'?'selected':'' %>>shipped</option>
+                            <option value="cancelled" <%= o.order.status==='cancelled'?'selected':'' %>>cancelled</option>
+                          </select>
+                          <button type="submit" class="btn">Cập nhật</button>
+                        </form>
+                      <% } %>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </section>
+</div>

@@ -1,3 +1,9 @@
+<%
+  const productCount = products.length;
+  const categoryCount = Array.from(new Set(products.map((product) => product.category).filter(Boolean))).length;
+  const lowStockCount = products.filter((product) => Number(product.stock || 0) <= 5).length;
+%>
+
 <div class="admin-wrap">
   <aside class="admin-sidebar">
     <a href="/admin" class="nav-item <%= (typeof activeAdmin==='undefined' || activeAdmin==='products') ? 'active' : '' %>">
@@ -21,26 +27,68 @@
       <span class="label">Doanh thu</span>
     </a>
   </aside>
-  <div class="admin-main">
-    <h2 class="admin-title">Quản lý sản phẩm</h2>
-    <div class="product-grid">
-    <% products.forEach(p=>{ 
-        const stockClass = (p.stock>20) ? 'stock-high' : (p.stock>5 ? 'stock-medium' : 'stock-low');
-    %>
-      <div class="product-card">
-        <div class="image-wrap card-image"><img loading="lazy" src="<%= p.safeImage || p.image || '/images/default.svg' %>" alt=""/></div>
-        <div class="card-body">
-          <div class="card-title"><span class="prod-name"><%= p.title %></span></div>
-          <div class="text-muted meta"><span class="cat"><%= p.category %></span> • <span class="stock <%= stockClass %>"><%= p.stock %> in stock</span></div>
-          <div class="card-actions">
-            <a href="/admin/edit/<%= p.id %>" class="btn-edit">Sửa</a>
-            <form method="post" action="/admin/delete/<%= p.id %>" style="display:inline">
-              <button type="submit" class="btn-delete">Xoá</button>
-            </form>
-          </div>
+  <section class="admin-main catalog-admin-page">
+    <div class="catalog-hero-card">
+      <div>
+        <p class="orders-eyebrow">Catalog overview</p>
+        <h2 class="admin-title catalog-title">Quản lý sản phẩm</h2>
+        <p class="catalog-subtitle">Theo dõi nhanh số lượng sản phẩm, tồn kho thấp và thao tác chỉnh sửa ngay trên một giao diện rõ ràng hơn.</p>
+      </div>
+      <div class="catalog-hero-actions">
+        <a href="/admin/new" class="btn">Thêm sản phẩm mới</a>
+      </div>
+    </div>
+
+    <div class="catalog-kpi-grid">
+      <div class="catalog-kpi-card">
+        <span>Tổng sản phẩm</span>
+        <strong><%= productCount %></strong>
+      </div>
+      <div class="catalog-kpi-card">
+        <span>Danh mục</span>
+        <strong><%= categoryCount %></strong>
+      </div>
+      <div class="catalog-kpi-card accent-alert">
+        <span>Tồn kho thấp</span>
+        <strong><%= lowStockCount %></strong>
+      </div>
+    </div>
+
+    <div class="catalog-card-shell">
+      <div class="orders-table-head catalog-section-head">
+        <div>
+          <h3>Danh sách sản phẩm</h3>
+          <p><%= productCount %> sản phẩm đang được quản lý trong hệ thống.</p>
         </div>
       </div>
-    <% }) %>
+
+      <div class="admin-catalog-grid">
+      <% products.forEach((p) => {
+          const stockClass = (p.stock > 20) ? 'stock-high' : (p.stock > 5 ? 'stock-medium' : 'stock-low');
+      %>
+        <article class="admin-catalog-card">
+          <div class="admin-catalog-image-wrap">
+            <img loading="lazy" src="<%= p.safeImage || p.image || '/images/default.svg' %>" alt="<%= p.title %>" class="admin-catalog-image" />
+            <span class="stock admin-stock-chip <%= stockClass %>"><%= p.stock %> sản phẩm</span>
+          </div>
+          <div class="admin-catalog-body">
+            <div class="admin-catalog-meta-row">
+              <span class="admin-catalog-id">#<%= p.id %></span>
+              <span class="admin-catalog-category"><%= p.category || 'Chưa phân loại' %></span>
+            </div>
+            <h3 class="admin-catalog-name"><%= p.title %></h3>
+            <div class="admin-catalog-footer">
+              <div class="admin-catalog-actions">
+                <a href="/admin/edit/<%= p.id %>" class="btn-edit admin-catalog-btn">Sửa</a>
+                <form method="post" action="/admin/delete/<%= p.id %>">
+                  <button type="submit" class="btn-delete admin-catalog-delete">Xóa</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </article>
+      <% }) %>
+      </div>
     </div>
-  </div>
+  </section>
 </div>

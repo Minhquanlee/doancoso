@@ -1,8 +1,51 @@
-<h2>Thanh toán thành công</h2>
-<p>Đơn hàng #<%= orderId %> đã được tạo. Tổng: <%= total.toLocaleString() %> VND</p>
-
 <% const appliedDiscountSummary = (typeof discountSummary !== 'undefined' && discountSummary) ? discountSummary : null; %>
-<% if (appliedDiscountSummary && appliedDiscountSummary.discountAmount > 0 && appliedDiscountSummary.appliedDiscount) { %>
-	<p>Mã giảm giá đã áp dụng: <strong><%= appliedDiscountSummary.appliedDiscount.code %></strong> — giảm <strong><%= appliedDiscountSummary.discountAmount.toLocaleString() %> VND</strong></p>
-<% } %>
-<a href="/">Quay về cửa hàng</a>
+
+<section class="checkout-success-page">
+	<div class="checkout-success-shell">
+		<div class="checkout-success-hero">
+			<div class="checkout-success-icon">
+				<i class="fas fa-circle-check"></i>
+			</div>
+			<div class="checkout-success-copy">
+				<p class="orders-eyebrow">Order confirmed</p>
+				<h2>Thanh toán thành công</h2>
+				<p class="checkout-success-text">Đơn hàng của bạn đã được ghi nhận thành công. Chúng tôi sẽ xử lý và cập nhật trạng thái giao hàng trong thời gian sớm nhất.</p>
+				<span class="sales-status-chip paid checkout-success-chip">Đã thanh toán</span>
+			</div>
+		</div>
+
+		<div class="checkout-success-grid">
+			<div class="checkout-success-card primary-card">
+				<p class="checkout-success-label">Mã đơn hàng</p>
+				<strong>#<%= orderId %></strong>
+				<span>Theo dõi đơn hàng của bạn trong mục trạng thái đơn hàng.</span>
+			</div>
+
+			<div class="checkout-success-card primary-card">
+				<p class="checkout-success-label">Tổng thanh toán</p>
+				<strong><%= total.toLocaleString() %> VND</strong>
+				<span>Số tiền cuối cùng sau khi áp dụng các ưu đãi hợp lệ.</span>
+			</div>
+
+			<% if (appliedDiscountSummary && appliedDiscountSummary.discountAmount > 0 && appliedDiscountSummary.appliedDiscount) { %>
+				<div class="checkout-success-card accent-card">
+					<p class="checkout-success-label">Mã giảm giá đã dùng</p>
+					<strong><%= appliedDiscountSummary.appliedDiscount.code %></strong>
+					<span>Tiết kiệm <%= appliedDiscountSummary.discountAmount.toLocaleString() %> VND cho đơn hàng này.</span>
+				</div>
+			<% } %>
+		</div>
+
+		<div class="checkout-success-info">
+			<div class="checkout-success-note">
+				<h3>Bước tiếp theo</h3>
+				<p>Bạn có thể tiếp tục mua sắm hoặc vào trang đơn hàng để xem tiến trình xử lý và giao hàng.</p>
+			</div>
+			<div class="checkout-success-actions">
+				<a href="/order/<%= orderId %>" class="btn">Xem chi tiết đơn hàng</a>
+				<a href="/order-status" class="btn-ghost">Theo dõi đơn hàng</a>
+				<a href="/" class="btn-ghost">Quay về cửa hàng</a>
+			</div>
+		</div>
+	</div>
+</section>

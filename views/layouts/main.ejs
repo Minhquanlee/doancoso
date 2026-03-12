@@ -55,10 +55,9 @@
                   <img src="<%= currentUser.avatar ? currentUser.avatar : '/images/avatar.jpg' %>" alt="avatar" />
                 </button>
                 <div class="account-list">
-                    <a href="/account">Hồ sơ</a>
-                    <a href="/chat">Tin nhắn</a>
-                    <a href="/account/password">Đổi mật khẩu</a>
-                  </div>
+                  <a href="/account" data-no-transition="true">Hồ sơ</a>
+                  <a href="/chat" data-no-transition="true">Tin nhắn</a>
+                </div>
               </div>
             <% } else { %>
               <a href="/admin/chats" class="icon-btn" title="Hộp thư khách hàng">
@@ -71,8 +70,6 @@
                   <a href="/admin">Quản lý sản phẩm</a>
                   <a href="/admin/new">Thêm sản phẩm</a>
                   <a href="/admin/orders">Đơn hàng</a>
-                  <a href="/admin/chats">Tin nhắn khách hàng</a>
-                  <a href="/admin/sales">Doanh thu</a>
                 </div>
               </div>
               <a href="/logout" class="icon-btn logout-icon-btn" title="Đăng xuất" data-confirm-logout="true" data-no-transition="true"><i class="fas fa-right-from-bracket"></i></a>
@@ -136,7 +133,7 @@
               <a href="/order-status">Đơn hàng</a>
               <a href="/chat">Tin nhắn với admin<% if (chatUnreadCount) { %> (<%= chatUnreadCount %>)<% } %></a>
             <% } %>
-            <a href="/logout" class="link-btn" data-confirm-logout="true" data-no-transition="true" onclick="event.preventDefault(); if (window.confirm('Bạn có chắc chắn muốn đăng xuất không?')) window.location.assign('/logout');">Đăng xuất</a>
+            <a href="/logout" class="link-btn" data-confirm-logout="true" data-no-transition="true">Đăng xuất</a>
           <% } else { %>
             <a href="/login" data-no-transition="true">Đăng nhập</a>
             <a href="/register" data-no-transition="true">Đăng ký</a>
@@ -172,6 +169,18 @@
         <div class="auth-required-actions">
           <button type="button" class="link-btn auth-required-close">Để sau</button>
           <a href="/login" class="btn auth-required-login" data-no-transition="true">Đăng nhập ngay</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="logout-confirm-modal" aria-hidden="true">
+      <div class="logout-confirm-card" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
+        <div class="logout-confirm-icon"><i class="fas fa-right-from-bracket"></i></div>
+        <h3 class="logout-confirm-title" id="logout-confirm-title">Bạn có chắc chắn muốn đăng xuất?</h3>
+        <p class="logout-confirm-text">Phiên đăng nhập hiện tại sẽ kết thúc ngay. Bạn có thể đăng nhập lại bất cứ lúc nào để tiếp tục mua sắm và quản lý đơn hàng.</p>
+        <div class="logout-confirm-actions">
+          <button type="button" class="btn-ghost logout-confirm-cancel">Ở lại</button>
+          <a href="/logout" class="btn logout-confirm-accept" data-no-transition="true">Đăng xuất</a>
         </div>
       </div>
     </div>
@@ -261,6 +270,25 @@
         });
       }
       function bindLogoutConfirmation(){
+        const modal = document.querySelector('.logout-confirm-modal');
+        const cancelButton = modal && modal.querySelector('.logout-confirm-cancel');
+        const acceptButton = modal && modal.querySelector('.logout-confirm-accept');
+        if (!modal || !cancelButton || !acceptButton) return;
+
+        function closeLogoutModal(){
+          modal.classList.remove('show');
+          modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function openLogoutModal(targetHref){
+          acceptButton.setAttribute('href', targetHref || '/logout');
+          modal.classList.add('show');
+          modal.setAttribute('aria-hidden', 'false');
+        }
+
+        cancelButton.addEventListener('click', function(){ closeLogoutModal(); });
+        modal.addEventListener('click', function(e){ if (e.target === modal) closeLogoutModal(); });
+
         document.querySelectorAll('[data-confirm-logout="true"]').forEach(function(element){
           if (element.dataset.logoutBound === 'true') return;
           element.dataset.logoutBound = 'true';
@@ -268,17 +296,13 @@
           element.addEventListener(eventName, function(e){
             e.preventDefault();
             e.stopPropagation();
-            const ok = window.confirm('Bạn có chắc chắn muốn đăng xuất không?');
-            if (!ok) return;
-
-            if (element.tagName === 'FORM') {
-              element.submit();
-              return;
-            }
-
             const targetHref = element.getAttribute('href') || '/logout';
-            window.location.assign(targetHref);
+            openLogoutModal(targetHref);
           });
+        });
+
+        document.addEventListener('keydown', function(e){
+          if (e.key === 'Escape' && modal.classList.contains('show')) closeLogoutModal();
         });
       }
 

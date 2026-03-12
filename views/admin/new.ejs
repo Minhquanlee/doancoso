@@ -22,57 +22,111 @@
     </a>
   </aside>
 
-  <div class="admin-main">
-    <div class="admin-form-card product-form-card">
-      <div class="form-header product-form-header">
-        <div>
-          <h2>Thêm sản phẩm mới</h2>
-          <p class="product-form-intro">Điền thông tin sản phẩm theo bố cục chuẩn để quản lý kho và hiển thị ngoài cửa hàng chính xác hơn.</p>
+  <section class="admin-main product-create-page">
+    <div class="product-create-hero">
+      <div>
+        <p class="orders-eyebrow">Catalog management</p>
+        <h2 class="admin-title product-create-title">Tạo sản phẩm mới</h2>
+        <p class="product-create-subtitle">Thêm sản phẩm theo một bố cục rõ ràng để nội dung, giá bán, tồn kho và hình ảnh luôn đồng bộ trước khi hiển thị ra cửa hàng.</p>
+      </div>
+      <div class="product-create-hero-actions">
+        <a href="/admin" class="btn-ghost">Quay lại danh sách</a>
+        <a href="/admin/sales" class="btn">Xem doanh thu</a>
+      </div>
+    </div>
+
+    <div class="product-create-layout">
+      <div class="admin-form-card product-form-card product-create-form-card">
+        <div class="form-header product-form-header">
+          <div>
+            <h2>Thông tin sản phẩm</h2>
+            <p class="product-form-intro">Điền các trường quan trọng trước, sau đó tải bộ ảnh để hệ thống dùng ảnh đầu tiên làm ảnh đại diện.</p>
+          </div>
+          <span class="product-form-badge">Mẫu chuẩn</span>
         </div>
-        <a href="/admin/sales" class="report-link">Báo cáo doanh thu</a>
+
+        <form method="post" action="/admin/new" enctype="multipart/form-data" class="admin-form product-form">
+          <div class="product-form-grid">
+            <label class="product-field field-span-2">
+              <span class="product-label">Tiêu đề sản phẩm</span>
+              <input name="title" placeholder="Ví dụ: Áo len cổ lọ premium" required />
+            </label>
+
+            <label class="product-field">
+              <span class="product-label">Giá bán (VND)</span>
+              <input name="price" type="number" min="0" placeholder="350000" required />
+            </label>
+
+            <label class="product-field">
+              <span class="product-label">Số lượng tồn kho</span>
+              <input name="stock" type="number" min="0" value="10" />
+            </label>
+
+            <label class="product-field field-span-2">
+              <span class="product-label">Mô tả</span>
+              <textarea name="description" rows="6" placeholder="Mô tả ngắn gọn về chất liệu, kiểu dáng, mùa phù hợp..."></textarea>
+            </label>
+
+            <label class="product-field field-span-2">
+              <span class="product-label">Danh mục</span>
+              <input name="category" placeholder="Áo, Quần, Mũ..." />
+            </label>
+
+            <div class="field-span-2 product-upload-panel">
+              <label class="product-field product-upload-field">
+                <span class="product-label">Ảnh sản phẩm</span>
+                <input id="images-input" name="images" type="file" accept="image/*" multiple />
+                <small class="product-help">Có thể chọn nhiều ảnh. Ảnh đầu tiên sẽ được dùng làm ảnh đại diện trên trang sản phẩm và danh sách.</small>
+              </label>
+
+              <div class="product-preview-panel">
+                <div class="product-preview-head">
+                  <strong>Xem trước ảnh</strong>
+                  <span>Hiển thị ngay sau khi chọn file</span>
+                </div>
+                <div id="preview" class="product-preview product-preview-grid"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions product-form-actions">
+            <button type="submit" class="btn btn-primary">Thêm sản phẩm</button>
+            <a href="/admin" class="btn-ghost">Hủy</a>
+          </div>
+        </form>
       </div>
 
-      <form method="post" action="/admin/new" enctype="multipart/form-data" class="admin-form product-form">
-        <div class="product-form-grid">
-          <label class="product-field">
-            <span class="product-label">Tiêu đề sản phẩm</span>
-            <input name="title" placeholder="Ví dụ: Áo len cổ lọ premium" required />
-          </label>
-
-          <label class="product-field">
-            <span class="product-label">Giá bán (VND)</span>
-            <input name="price" type="number" min="0" placeholder="350000" required />
-          </label>
-
-          <label class="product-field field-span-2">
-            <span class="product-label">Mô tả</span>
-            <textarea name="description" rows="6" placeholder="Mô tả ngắn gọn về chất liệu, kiểu dáng, mùa phù hợp..."></textarea>
-          </label>
-
-          <label class="product-field">
-            <span class="product-label">Danh mục</span>
-            <input name="category" placeholder="Áo, Quần, Mũ..." />
-          </label>
-
-          <label class="product-field">
-            <span class="product-label">Số lượng tồn kho</span>
-            <input name="stock" type="number" min="0" value="10" />
-          </label>
-
-          <label class="product-field field-span-2 product-upload-field">
-            <span class="product-label">Ảnh sản phẩm</span>
-            <input id="images-input" name="images" type="file" accept="image/*" multiple />
-            <small class="product-help">Có thể chọn nhiều ảnh. Ảnh đầu tiên sẽ được dùng làm ảnh đại diện.</small>
-          </label>
+      <aside class="product-create-sidebar">
+        <div class="product-side-card tone-warm">
+          <p class="product-side-eyebrow">Checklist</p>
+          <h3>Trước khi lưu</h3>
+          <ul class="product-side-list">
+            <li>Tiêu đề ngắn gọn, đúng tên sản phẩm.</li>
+            <li>Giá bán nhập theo VND, không thêm dấu chấm hoặc ký hiệu.</li>
+            <li>Danh mục nên khớp với menu ngoài trang chủ.</li>
+            <li>Bộ ảnh nên đủ mặt trước, mặt sau hoặc chi tiết nổi bật.</li>
+          </ul>
         </div>
 
-        <div id="preview" class="product-preview"></div>
-
-        <div class="form-actions product-form-actions">
-          <button type="submit" class="btn btn-primary">Thêm sản phẩm</button>
-          <a href="/admin" class="btn-ghost">Hủy</a>
+        <div class="product-side-card">
+          <p class="product-side-eyebrow">Gợi ý nội dung</p>
+          <h3>Mô tả nên có gì</h3>
+          <div class="product-tip-stack">
+            <div>
+              <strong>Chất liệu</strong>
+              <span>Ví dụ: cotton, len, kaki, denim.</span>
+            </div>
+            <div>
+              <strong>Kiểu dáng</strong>
+              <span>Form rộng, ôm vừa, dáng suông hoặc regular.</span>
+            </div>
+            <div>
+              <strong>Hoàn cảnh sử dụng</strong>
+              <span>Mặc đi làm, đi chơi, mùa đông hoặc phối nhiều lớp.</span>
+            </div>
+          </div>
         </div>
-      </form>
+      </aside>
     </div>
-  </div>
+  </section>
 </div>
