@@ -148,7 +148,7 @@ body.page-is-leaving .site-footer{transform:translateY(8px) scale(.998);opacity:
 .account-menu .account-toggle{background:transparent;border:none;color:#fff;cursor:pointer;padding:6px 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center}
 .account-toggle img{width:36px;height:36px;border-radius:999px;border:3px solid #fff;object-fit:cover}
 /* dropdown hidden by default; use .open class or focus-within as fallback */
-.account-menu .account-list{position:absolute;right:0;top:46px;background:#fff;color:#111827;border-radius:12px;box-shadow:0 18px 40px rgba(17,24,39,0.14);min-width:180px;display:none;z-index:120;padding:6px 0;border:1px solid var(--border)}
+.account-menu .account-list{position:absolute;right:0;top:46px;background:#fff;color:#111827;border-radius:12px;box-shadow:0 18px 40px rgba(17,24,39,0.14);min-width:180px;display:none;z-index:1200;padding:6px 0;border:1px solid var(--border);pointer-events:auto}
 .account-menu.open .account-list, .account-menu:focus-within .account-list{display:block}
 .account-menu .account-list a{display:block;padding:8px 14px;color:#111;text-decoration:none}
 .account-menu .account-list a:hover{background:var(--surface-muted)}
